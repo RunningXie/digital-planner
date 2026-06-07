@@ -1,0 +1,60 @@
+#!/bin/bash
+# ============================================
+#  Digital Planner Integration Test Runner
+#  Run this every time you make changes.
+#  Usage: bash run_tests.sh [--no-concurrency]
+# ============================================
+set -e
+
+echo "=================================="
+echo "  Digital Planner - Integration Tests"
+echo "=================================="
+
+cd "$(dirname "$0")"
+
+# Check if --no-concurrency flag is provided
+NO_CONCURRENCY=false
+if [ "$1" = "--no-concurrency" ]; then
+    NO_CONCURRENCY=true
+    shift
+fi
+
+# Set up pip path
+PIP="$HOME/.local/bin/pip"
+if [ ! -f "$PIP" ]; then
+    PIP="pip3"
+fi
+
+# Install test dependencies if needed
+echo ""
+echo "[1/2] Checking dependencies..."
+$PIP install --user --break-system-packages pytest pytest-asyncio httpx pytest-xdist -q 2>/dev/null || \
+    $PIP install pytest pytest-asyncio httpx pytest-xdist -q 2>/dev/null || \
+    echo "[WARN] Could not install test dependencies, continuing anyway..."
+
+# Run all tests with concurrency (pytest-xdist)
+echo ""
+echo "[2/2] Running all tests..."
+
+# Determine number of workers: use CPU count, max 4 for stability
+WORKERS=$(nproc 2>/dev/null || echo 2)
+if [ "$WORKERS" -gt 4 ]; then
+    WORKERS=4
+fi
+
+if [ "$NO_CONCURRENCY" = true ]; then
+    echo "Running tests sequentially..."
+    python3 -m pytest tests/ -v --tb=short 2>/dev/null || \
+        python -m pytest tests/ -v --tb=short
+else
+    echo "Running tests with $WORKERS concurrent workers..."
+    echo "(Add --no-concurrency to run sequentially)"
+    echo ""
+    python3 -m pytest tests/ -v --tb=short -n "$WORKERS" 2>/dev/null || \
+        python -m pytest tests/ -v --tb=short -n "$WORKERS"
+fi
+
+echo ""
+echo "=================================="
+echo "  All tests completed!"
+echo "=================================="

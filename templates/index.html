@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dear Diary - 英文日记本</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--warm-bg) 0%, var(--warm-secondary) 100%);
+            text-align: center;
+        }
+        
+        .hero-content {
+            max-width: 600px;
+            padding: 2rem;
+        }
+        
+        .hero-icon {
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            color: var(--warm-primary-dark);
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            color: var(--warm-text-light);
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+        
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .features {
+            padding: 4rem 2rem;
+            background: var(--warm-card);
+        }
+        
+        .features-grid {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+        }
+        
+        .feature-card {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .feature-card h3 {
+            color: var(--warm-primary-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .feature-card p {
+            color: var(--warm-text-light);
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="hero-content">
+            <div class="hero-icon">📖</div>
+            <h1>Dear Diary</h1>
+            <p>在这里，用文字记录生活，用英文表达心情。<br>
+            AI助手会帮你逐句优化表达，让你的英文更加地道自然。</p>
+            <div class="hero-buttons">
+                <a href="/register" class="btn btn-primary">开始写日记</a>
+                <a href="/login" class="btn btn-secondary">登录</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="features">
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">✍️</div>
+                <h3>私密日记</h3>
+                <p>安全的账号系统，你的日记只属于你一个人</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3>AI批改</h3>
+                <p>逐句分析英文表达，提供优化建议和地道表达</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3>短语搜索</h3>
+                <p>写作时随时搜索短语表达，让写作更流畅</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

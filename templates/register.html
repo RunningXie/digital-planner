@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - Dear Diary</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>创建账号</h1>
+                <p>开始你的英文日记之旅</p>
+            </div>
+            
+            <form id="registerForm">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-input" id="username" required placeholder="请输入用户名">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">邮箱</label>
+                    <input type="email" class="form-input" id="email" required placeholder="请输入邮箱">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="password" required placeholder="请输入密码（至少6位）" minlength="6">
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-full">注册</button>
+                <div id="registerMsg" class="message" style="display:none; margin-top:1rem;"></div>
+            </form>
+            
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <p style="color: var(--warm-text-light);">
+                    已有账号？ <a href="/login" style="color: var(--warm-primary-dark);">立即登录</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    const msgEl = document.getElementById('registerMsg');
+                    msgEl.textContent = data.detail || '注册失败';
+                    msgEl.className = 'message message-error';
+                    msgEl.style.display = 'block';
+                }
+            } catch (error) {
+                const msgEl = document.getElementById('registerMsg');
+                msgEl.textContent = '注册出错，请重试';
+                msgEl.className = 'message message-error';
+                msgEl.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

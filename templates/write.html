@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>写日记 - Dear Diary</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .write-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .write-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .title-input {
+            flex: 1;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: none;
+            background: transparent;
+            color: var(--warm-primary-dark);
+            padding: 0.5rem;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .title-input:focus {
+            outline: none;
+            border-bottom-color: var(--warm-primary);
+        }
+        
+        .write-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+        }
+        
+        @media (max-width: 900px) {
+            .write-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .editor-section {
+            background: var(--warm-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-soft);
+        }
+        
+        .editor-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--warm-border);
+        }
+        
+        .diary-textarea {
+            width: 100%;
+            min-height: 400px;
+            border: none;
+            background: var(--warm-bg);
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: 'Georgia', serif;
+            line-height: 1.8;
+            resize: vertical;
+        }
+        
+        .diary-textarea:focus {
+            outline: none;
+        }
+        
+        .helper-section {
+            position: sticky;
+            top: 100px;
+        }
+        
+        .phrase-search-box {
+            background: var(--warm-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 1.5rem;
+        }
+        
+        .phrase-search-box h3 {
+            color: var(--warm-primary-dark);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        
+        .search-input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .search-input-group input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--warm-border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .search-input-group button {
+            padding: 0.75rem 1rem;
+            background: var(--warm-primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .phrase-results {
+            margin-top: 1rem;
+        }
+        
+        .phrase-result-item {
+            background: var(--warm-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .phrase-result-item strong {
+            color: var(--warm-primary-dark);
+        }
+        
+        .phrase-result-item ul {
+            margin-left: 1.5rem;
+            color: var(--warm-text-light);
+        }
+        
+        .submit-section {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .submit-section .btn {
+            flex: 1;
+        }
+        
+        .corrections-section {
+            background: var(--warm-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-soft);
+            margin-top: 2rem;
+        }
+        
+        .correction-card {
+            background: linear-gradient(135deg, #f8f4ef 0%, #f0ebe3 100%);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid var(--warm-primary);
+        }
+        
+        .correction-original {
+            color: #c97b7b;
+            text-decoration: line-through;
+            margin-bottom: 0.5rem;
+        }
+        
+        .correction-corrected {
+            color: #7a9e7e;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .correction-explanation {
+            color: var(--warm-text-light);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .suggestion-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .suggestion-tag {
+            background: var(--warm-secondary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--warm-text);
+        }
+        
+        .optimized-content {
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .optimized-content h4 {
+            color: #2e7d32;
+            margin-bottom: 1rem;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="write-container">
+        <div class="write-header">
+            <h1 style="color: var(--warm-primary-dark);">✍️ 写日记</h1>
+        </div>
+        
+        <div class="write-content">
+            <div class="editor-section">
+                <div class="editor-toolbar">
+                    <span style="color: var(--warm-text-light); font-size: 0.9rem;">用英文写下今天的故事...</span>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                    <input type="date" id="diaryDate" class="form-input" style="flex: 0 0 150px; padding: 0.5rem;">
+                    <input type="text" id="diaryTitle" class="title-input" placeholder="标题（可选）..." style="flex: 1; margin-bottom: 0;">
+                </div>
+                
+                <textarea id="diaryContent" class="diary-textarea" placeholder="Start writing your diary in English..."></textarea>
+                
+                <div class="submit-section">
+                    <button onclick="saveDiary()" class="btn btn-primary">保存并批改</button>
+                    <button onclick="clearEditor()" class="btn btn-secondary">清空</button>
+                </div>
+            </div>
+            
+            <div class="helper-section">
+                <div class="phrase-search-box">
+                    <h3>🔍 短语搜索</h3>
+                    <p style="color: var(--warm-text-light); font-size: 0.85rem; margin-bottom: 1rem;">
+                        不知道如何表达？输入中文或英文来搜索地道的表达方式
+                    </p>
+                    <div class="search-input-group">
+                        <input type="text" id="phraseInput" placeholder="输入要搜索的短语..." onkeypress="handlePhraseKeypress(event)">
+                        <button onclick="searchPhraseExpression()">搜索</button>
+                    </div>
+                    <div id="phraseResults" class="phrase-results"></div>
+                </div>
+                
+                <div class="card" style="background: linear-gradient(135deg, #fef9e7 0%, #fdebd0 100%);">
+                    <h3 style="color: var(--warm-primary-dark); margin-bottom: 0.5rem;">💡 写作小贴士</h3>
+                    <ul style="color: var(--warm-text-light); font-size: 0.9rem; margin-left: 1.5rem;">
+                        <li>用英文写日记，记录生活的点滴</li>
+                        <li>AI会帮你批改语法和用词</li>
+                        <li>查看优化后的版本，学习更地道的表达</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div id="correctionsSection" class="corrections-section" style="display: none;">
+            <h3 style="color: var(--warm-primary-dark); margin-bottom: 1rem;">📝 批改结果</h3>
+            <div id="correctionsList"></div>
+            <div id="optimizedContent" class="optimized-content" style="display: none;">
+                <h4>✨ 优化后的版本</h4>
+                <p id="optimizedText"></p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <p style="margin-top: 1rem; color: var(--warm-text);">AI正在批改中，请稍候...</p>
+            <p style="margin-top: 0.5rem; color: var(--warm-text-light); font-size: 0.85rem;">通常需要 30-60 秒</p>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        // 检查登录状态
+        if (!isLoggedIn()) {
+            window.location.href = '/login';
+        }
+        
+        // 搜索短语 - 流式输出
+        function handlePhraseKeypress(event) {
+            if (event.key === 'Enter') {
+                searchPhraseExpression();
+            }
+        }
+
+        async function searchPhraseExpression() {
+            const phrase = document.getElementById('phraseInput').value.trim();
+            if (!phrase) return;
+
+            const resultsDiv = document.getElementById('phraseResults');
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:0.5rem;color:var(--warm-text-light);font-size:0.85rem;">搜索中...</p></div>';
+
+            try {
+                const token = getToken();
+                const response = await fetch(`${API_BASE}/search-phrase/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        phrase: phrase,
+                        source_lang: 'zh',
+                        target_lang: 'en'
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Response error:', response.status, errorText);
+                    throw new Error(`请求失败 (${response.status}): ${errorText}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let accumulatedData = {
+                    translations: [],
+                    examples: [],
+                    alternatives: [],
+                    source: 'ai'
+                };
+                let hasData = false;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (trimmed.startsWith('data: ')) {
+                            const dataStr = trimmed.slice(6);
+                            if (dataStr === '[DONE]') continue;
+                            try {
+                                const data = JSON.parse(dataStr);
+                                // 只有收到有效数据时才清空加载状态
+                                if (!hasData) {
+                                    resultsDiv.innerHTML = '';
+                                    hasData = true;
+                                }
+                                handlePhraseStreamData(data, resultsDiv, accumulatedData);
+                            } catch (e) {
+                                console.error('Parse error:', e, dataStr);
+                            }
+                        }
+                    }
+                }
+
+                // 如果整个流结束后都没有收到有效数据，显示提示
+                if (!hasData) {
+                    resultsDiv.innerHTML = '<p style="color: var(--warm-text-light);">没有找到相关结果</p>';
+                }
+
+            } catch (error) {
+                console.error('Search phrase error:', error);
+                resultsDiv.innerHTML = `<p style="color: var(--warm-error);">搜索失败：${error.message}</p>`;
+            }
+        }
+
+        function handlePhraseStreamData(data, resultsDiv, accumulatedData) {
+            // 缓存命中，直接显示完整结果
+            if (data.type === 'cached') {
+                displayPhraseResults(data, resultsDiv);
+                return;
+            }
+
+            // 错误
+            if (data.type === 'error') {
+                resultsDiv.innerHTML = `<div class="phrase-result-item" style="border-left-color: #e74c3c;">
+                    <strong style="color: #e74c3c;">⚠️ 搜索出错</strong>
+                    <p style="color: var(--warm-text-light);">${data.error || '未知错误'}</p>
+                </div>`;
+                return;
+            }
+
+            // 累积数据并逐项显示
+            if (data.type === 'translations') {
+                accumulatedData.translations = data.translations;
+                appendPhraseSection(resultsDiv, '翻译', data.translations, 'translations-section');
+            } else if (data.type === 'examples') {
+                accumulatedData.examples = data.examples;
+                appendPhraseSection(resultsDiv, '例句', data.examples, 'examples-section');
+            } else if (data.type === 'alternatives') {
+                accumulatedData.alternatives = data.alternatives;
+                appendPhraseSection(resultsDiv, '其他表达', data.alternatives, 'alternatives-section');
+            } else if (data.type === 'complete') {
+                // 完整结果，确保所有部分都显示
+                if (!document.getElementById('translations-section') && data.translations?.length) {
+                    appendPhraseSection(resultsDiv, '翻译', data.translations, 'translations-section');
+                }
+                if (!document.getElementById('examples-section') && data.examples?.length) {
+                    appendPhraseSection(resultsDiv, '例句', data.examples, 'examples-section');
+                }
+                if (!document.getElementById('alternatives-section') && data.alternatives?.length) {
+                    appendPhraseSection(resultsDiv, '其他表达', data.alternatives, 'alternatives-section');
+                }
+            }
+        }
+
+        function appendPhraseSection(resultsDiv, title, items, sectionId) {
+            if (!items || items.length === 0) return;
+
+            // 检查是否已存在该section
+            if (document.getElementById(sectionId)) return;
+
+            const section = document.createElement('div');
+            section.id = sectionId;
+            section.className = 'phrase-result-item';
+            section.style.animation = 'fadeIn 0.3s ease-in';
+            section.innerHTML = `
+                <strong>${title}：</strong>
+                <ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>
+            `;
+            resultsDiv.appendChild(section);
+        }
+
+        function displayPhraseResults(result, resultsDiv) {
+            resultsDiv.innerHTML = '';
+
+            if (result.source === 'cache') {
+                // 显示缓存来源标识
+                const cacheBadge = document.createElement('div');
+                cacheBadge.style.cssText = 'color: #7a9e7e; font-size: 0.8rem; margin-bottom: 0.5rem;';
+                cacheBadge.textContent = '⚡ 来自缓存（快速响应）';
+                resultsDiv.appendChild(cacheBadge);
+            }
+
+            if (result.translations && result.translations.length > 0) {
+                appendPhraseSection(resultsDiv, '翻译', result.translations, 'translations-section');
+            }
+
+            if (result.examples && result.examples.length > 0) {
+                appendPhraseSection(resultsDiv, '例句', result.examples, 'examples-section');
+            }
+
+            if (result.alternatives && result.alternatives.length > 0) {
+                appendPhraseSection(resultsDiv, '其他表达', result.alternatives, 'alternatives-section');
+            }
+
+            if (!result.translations?.length && !result.examples?.length && !result.alternatives?.length) {
+                resultsDiv.innerHTML = '<p style="color: var(--warm-text-light);">没有找到相关结果</p>';
+            }
+        }
+        
+        // 保存日记 — 流式逐句批改
+        let _isSaving = false;
+        let _eventSource = null;
+
+        async function saveDiary() {
+            if (_isSaving) return;
+
+            const title = document.getElementById('diaryTitle').value.trim();
+            const content = document.getElementById('diaryContent').value.trim();
+            const diaryDate = document.getElementById('diaryDate').value;
+
+            if (!content) {
+                showMessage('请输入日记内容', 'error');
+                return;
+            }
+
+            _isSaving = true;
+            const saveBtn = document.querySelector('.submit-section .btn-primary');
+            if (saveBtn) saveBtn.disabled = true;
+
+            const section = document.getElementById('correctionsSection');
+            const listDiv = document.getElementById('correctionsList');
+            const optimizedDiv = document.getElementById('optimizedContent');
+            const optimizedText = document.getElementById('optimizedText');
+
+            section.style.display = 'block';
+            listDiv.innerHTML = '<div class="loading" style="padding: 2rem;"><div class="spinner"></div><p style="margin-top:0.5rem;color:var(--warm-text-light);">AI正在逐句批改中...</p></div>';
+            optimizedDiv.style.display = 'none';
+            section.scrollIntoView({ behavior: 'smooth' });
+
+            // 先保存日记，然后启动流式批改
+            try {
+                // 使用 fetch 先创建日记并获取流
+                const token = getToken();
+                const response = await fetch(`${API_BASE}/diaries/stream`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        title: title || "",
+                        content: content,
+                        diary_date: diaryDate ? diaryDate + 'T00:00:00' : null
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || '请求失败');
+                }
+
+                // 清空加载状态
+                listDiv.innerHTML = '';
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let noErrorsCount = 0;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // 保留不完整的最后一行
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (trimmed.startsWith('data: ')) {
+                            const dataStr = trimmed.slice(6);
+                            if (dataStr === '[DONE]') continue;
+                            try {
+                                const data = JSON.parse(dataStr);
+                                handleStreamData(data, listDiv, optimizedDiv, optimizedText);
+                                if (data.type === 'done') {
+                                    showMessage('日记已保存并批改完成！', 'success');
+                                }
+                            } catch (e) {
+                                console.error('Parse error:', e, dataStr);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                listDiv.innerHTML = `<div class="correction-card" style="border-left-color: #e74c3c;">
+                    <div style="color: #e74c3c; font-weight: bold;">⚠️ 批改出错</div>
+                    <div style="color: var(--warm-text-light); margin-top: 0.5rem;">${error.message}</div>
+                </div>`;
+                showMessage('批改失败：' + error.message, 'error');
+            } finally {
+                _isSaving = false;
+                if (saveBtn) saveBtn.disabled = false;
+            }
+        }
+
+        function handleStreamData(data, listDiv, optimizedDiv, optimizedText) {
+            if (data.type === 'optimized') {
+                // 显示优化后的版本
+                if (data.optimized_content) {
+                    optimizedDiv.style.display = 'block';
+                    optimizedText.textContent = data.optimized_content;
+                }
+                return;
+            }
+
+            if (data.type === 'done') {
+                return;
+            }
+
+            // 这是一个批改结果
+            const correction = data;
+            const card = document.createElement('div');
+            card.className = 'correction-card';
+            card.style.animation = 'fadeIn 0.3s ease-in';
+
+            const hasError = correction.explanation !== 'No errors found.';
+
+            card.innerHTML = `
+                <div class="correction-original">原文：${correction.original}</div>
+                ${hasError ? `<div class="correction-corrected">✓ ${correction.corrected}</div>` : ''}
+                <div class="correction-explanation">📖 ${correction.explanation || '无解释'}</div>
+                ${correction.suggestions && correction.suggestions.length > 0 ? `
+                    <div class="suggestion-tags">
+                        ${correction.suggestions.map(s => `<span class="suggestion-tag">${s}</span>`).join('')}
+                    </div>
+                ` : ''}
+            `;
+
+            listDiv.appendChild(card);
+
+            // 自动滚动到新添加的卡片
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        // 清空编辑器
+        function clearEditor() {
+            document.getElementById('diaryTitle').value = '';
+            document.getElementById('diaryContent').value = '';
+            document.getElementById('correctionsSection').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
