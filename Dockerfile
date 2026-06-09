@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simple/
+
 WORKDIR /app
 
 # Install system dependencies
