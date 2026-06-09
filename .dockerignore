@@ -1,27 +1,69 @@
-__pycache__
+# Python artifacts
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-env
-venv
-.venv
+
+# Virtual environments
+env/
+venv/
+.venv/
+.env/
+
+# Pip
 pip-log.txt
 pip-delete-this-directory.txt
-.tox
+requirements-dev.txt
+
+# Testing
+.tox/
 .coverage
 .coverage.*
-.cache
+.cache/
 nosetests.xml
 coverage.xml
 *.cover
-*.log
-.git
-.mypy_cache
-.pytest_cache
-.hypothesis
+.pytest_cache/
+.hypothesis/
+tests/
 
-.env
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs
+*.log
+logs/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
 *.db
 *.sqlite3
 data/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+README.md
+TECHNICAL_DOC.md
+
+# CI/CD
+.trae/
+push_to_github.sh
+run_tests.sh
+start.sh
