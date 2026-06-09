@@ -4,6 +4,9 @@ RUN pip config set global.index-url https://mirrors.cloud.tencent.com/pypi/simpl
 
 WORKDIR /app
 
+# Replace Debian sources with Aliyun mirror for better stability on Tencent Cloud
+RUN sed -i 's|http://\(deb\|security\)\.debian\.org|https://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
