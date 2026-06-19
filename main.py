@@ -10,11 +10,12 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
 from database import init_db, get_db
-from models import User, Diary
+from models import User, Diary, NotebookEntry
 from schemas import (
     UserCreate, UserResponse, UserLogin,
     DiaryCreate, DiaryUpdate, DiaryResponse,
-    Token, PhraseSearchRequest, PhraseSearchResponse
+    Token, PhraseSearchRequest, PhraseSearchResponse,
+    NotebookEntryCreate, NotebookEntryUpdate, NotebookEntryResponse
 )
 from auth import (
     get_password_hash, verify_password, 
@@ -93,6 +94,11 @@ async def write_page(request: Request):
 @app.get("/diaries", response_class=HTMLResponse)
 async def diaries_page(request: Request):
     return render_template("diaries.html", request)
+
+
+@app.get("/notebook", response_class=HTMLResponse)
+async def notebook_page(request: Request):
+    return render_template("notebook.html", request)
 
 
 # API Routes - Auth
@@ -186,6 +192,167 @@ async def create_diary_stream(
         yield f"data: {json.dumps({'type': 'done', 'diary_id': db_diary.id})}\n\n"
     
     return StreamingResponse(stream_corrections(), media_type="text/event-stream")
+
+
+@app.post("/api/diaries/draft", response_model=DiaryResponse)
+async def save_draft(
+    diary: DiaryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Save diary draft without AI correction.
+    This is used for auto-save feature.
+    """
+    db_diary = Diary(
+        user_id=current_user.id,
+        title=diary.title or "",
+        content=diary.content,
+        diary_date=diary.diary_date or datetime.utcnow()
+    )
+    db.add(db_diary)
+    db.commit()
+    db.refresh(db_diary)
+    
+    return DiaryResponse(
+        id=db_diary.id,
+        user_id=db_diary.user_id,
+        title=db_diary.title,
+        content=db_diary.content,
+        diary_date=db_diary.diary_date,
+        created_at=db_diary.created_at,
+        updated_at=db_diary.updated_at,
+        corrections=[],
+        optimized_content="",
+        error=None,
+    )
+
+
+@app.put("/api/diaries/{diary_id}/draft", response_model=DiaryResponse)
+async def update_draft(
+    diary_id: int,
+    diary_update: DiaryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update existing diary draft without AI correction.
+    This is used for auto-save feature.
+    """
+    db_diary = db.query(Diary).filter(
+        Diary.id == diary_id,
+        Diary.user_id == current_user.id
+    ).first()
+    if not db_diary:
+        raise HTTPException(status_code=404, detail="Diary not found")
+    
+    if diary_update.title is not None:
+        db_diary.title = diary_update.title
+    if diary_update.content is not None:
+        db_diary.content = diary_update.content
+    if diary_update.diary_date is not None:
+        db_diary.diary_date = diary_update.diary_date
+    
+    db.commit()
+    db.refresh(db_diary)
+    
+    return DiaryResponse(
+        id=db_diary.id,
+        user_id=db_diary.user_id,
+        title=db_diary.title,
+        content=db_diary.content,
+        diary_date=db_diary.diary_date,
+        created_at=db_diary.created_at,
+        updated_at=db_diary.updated_at,
+        corrections=db_diary.corrections or [],
+        optimized_content=db_diary.optimized_content or "",
+        error=db_diary.ai_error,
+    )
+
+
+from fastapi import Query
+
+@app.post("/api/correct-sentence")
+async def correct_sentence(
+    sentence: str = Query(...),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Correct a single sentence.
+    Used for real-time correction as user types.
+    """
+    prompt = f"""You are a strict English teacher. Correct this single sentence from a student's diary.
+
+Sentence: "{sentence}"
+
+Check for:
+- Grammar errors (verb tense, subject-verb agreement, articles, prepositions)
+- Spelling errors
+- Expression/naturalness
+- Punctuation errors
+
+Provide 2-3 alternative/better expressions in the suggestions array.
+
+RESPONSE FORMAT — output ONLY this JSON, nothing else:
+{{"original": "{sentence}", "corrected": "corrected sentence", "explanation": "what was wrong or 'No errors found.'", "suggestions": ["alt1", "alt2"]}}
+
+IMPORTANT: Your response must be ONLY the JSON object. No markdown code blocks, no extra text."""
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "model": settings.ai_model,
+                "messages": [
+                    {"role": "system", "content": "You are a strict English teacher. Respond ONLY with a valid JSON object. Never use markdown formatting."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.1
+            }
+
+            async with session.post(
+                f"{settings.ai_base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.ai_api_key}",
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    return {
+                        "original": sentence,
+                        "corrected": sentence,
+                        "explanation": f"AI API error: {response.status}",
+                        "suggestions": []
+                    }
+
+                result = await response.json()
+                raw_content = result["choices"][0]["message"]["content"]
+
+                try:
+                    parsed = json.loads(raw_content)
+                    return {
+                        "original": sentence,
+                        "corrected": parsed.get("corrected", sentence),
+                        "explanation": parsed.get("explanation", "No errors found."),
+                        "suggestions": parsed.get("suggestions", [])
+                    }
+                except Exception as parse_error:
+                    return {
+                        "original": sentence,
+                        "corrected": sentence,
+                        "explanation": f"Failed to parse AI response: {str(parse_error)}",
+                        "suggestions": []
+                    }
+
+    except Exception as e:
+        return {
+            "original": sentence,
+            "corrected": sentence,
+            "explanation": f"Error: {str(e)}",
+            "suggestions": []
+        }
 
 
 @app.post("/api/diaries", response_model=DiaryResponse)
@@ -340,6 +507,184 @@ async def search_phrase_stream(
             yield f"data: {json.dumps(item)}\n\n"
 
     return StreamingResponse(stream_results(), media_type="text/event-stream")
+
+
+# ========== Notebook API ==========
+
+@app.get("/api/notebook", response_model=list[NotebookEntryResponse])
+async def get_notebook_entries(
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all notebook entries for the current user"""
+    entries = db.query(NotebookEntry)\
+        .filter(NotebookEntry.user_id == current_user.id)\
+        .order_by(NotebookEntry.created_at.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+    return entries
+
+
+@app.post("/api/notebook", response_model=NotebookEntryResponse)
+async def create_notebook_entry(
+    entry: NotebookEntryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Create a new notebook entry"""
+    # Check if phrase already exists
+    existing = db.query(NotebookEntry)\
+        .filter(NotebookEntry.user_id == current_user.id)\
+        .filter(NotebookEntry.phrase == entry.phrase)\
+        .first()
+    
+    if existing:
+        # Update existing entry instead
+        existing.translations = entry.translations or existing.translations
+        existing.examples = entry.examples or existing.examples
+        existing.alternatives = entry.alternatives or existing.alternatives
+        db.commit()
+        db.refresh(existing)
+        return existing
+    
+    # Create new entry
+    db_entry = NotebookEntry(
+        user_id=current_user.id,
+        phrase=entry.phrase,
+        translations=entry.translations or [],
+        examples=entry.examples or [],
+        alternatives=entry.alternatives or [],
+        note=entry.note or ""
+    )
+    db.add(db_entry)
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
+
+
+@app.get("/api/notebook/{entry_id}", response_model=NotebookEntryResponse)
+async def get_notebook_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get a single notebook entry"""
+    entry = db.query(NotebookEntry)\
+        .filter(NotebookEntry.id == entry_id)\
+        .filter(NotebookEntry.user_id == current_user.id)\
+        .first()
+    
+    if not entry:
+        raise HTTPException(status_code=404, detail="Notebook entry not found")
+    
+    return entry
+
+
+@app.put("/api/notebook/{entry_id}", response_model=NotebookEntryResponse)
+async def update_notebook_entry(
+    entry_id: int,
+    entry_update: NotebookEntryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Update a notebook entry"""
+    db_entry = db.query(NotebookEntry)\
+        .filter(NotebookEntry.id == entry_id)\
+        .filter(NotebookEntry.user_id == current_user.id)\
+        .first()
+    
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Notebook entry not found")
+    
+    if entry_update.note is not None:
+        db_entry.note = entry_update.note
+    if entry_update.translations is not None:
+        db_entry.translations = entry_update.translations
+    if entry_update.examples is not None:
+        db_entry.examples = entry_update.examples
+    if entry_update.alternatives is not None:
+        db_entry.alternatives = entry_update.alternatives
+    
+    db.commit()
+    db.refresh(db_entry)
+    return db_entry
+
+
+@app.delete("/api/notebook/{entry_id}")
+async def delete_notebook_entry(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Delete a notebook entry"""
+    db_entry = db.query(NotebookEntry)\
+        .filter(NotebookEntry.id == entry_id)\
+        .filter(NotebookEntry.user_id == current_user.id)\
+        .first()
+    
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Notebook entry not found")
+    
+    db.delete(db_entry)
+    db.commit()
+    
+    return {"message": "Notebook entry deleted successfully"}
+
+
+@app.put("/api/notebook/{entry_id}/review", response_model=NotebookEntryResponse)
+async def mark_as_reviewed(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Mark a notebook entry as reviewed"""
+    db_entry = db.query(NotebookEntry)\
+        .filter(NotebookEntry.id == entry_id)\
+        .filter(NotebookEntry.user_id == current_user.id)\
+        .first()
+    
+    if not db_entry:
+        raise HTTPException(status_code=404, detail="Notebook entry not found")
+    
+    db_entry.last_reviewed_at = datetime.utcnow()
+    db_entry.review_count = (db_entry.review_count or 0) + 1
+    db.commit()
+    db.refresh(db_entry)
+    
+    return db_entry
+
+
+@app.get("/api/notebook/search/{phrase}")
+async def search_notebook(
+    phrase: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Search notebook entries by phrase (for caching purposes)"""
+    entries = db.query(NotebookEntry)\
+        .filter(NotebookEntry.user_id == current_user.id)\
+        .filter(NotebookEntry.phrase.ilike(f"%{phrase}%"))\
+        .all()
+    
+    if entries:
+        return {
+            "found": True,
+            "entries": [
+                {
+                    "id": e.id,
+                    "phrase": e.phrase,
+                    "translations": e.translations,
+                    "examples": e.examples,
+                    "alternatives": e.alternatives,
+                    "note": e.note
+                } for e in entries
+            ]
+        }
+    
+    return {"found": False, "entries": []}
 
 
 if __name__ == "__main__":

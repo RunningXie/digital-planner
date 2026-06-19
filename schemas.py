@@ -90,3 +90,35 @@ class PhraseSearchResponse(BaseModel):
     alternatives: List[str]
     source: Optional[str] = None  # "local" or "ai" or "error"
     error: Optional[str] = None
+
+
+# Notebook schemas
+class NotebookEntryCreate(BaseModel):
+    phrase: str
+    translations: Optional[List[str]] = []
+    examples: Optional[List[str]] = []
+    alternatives: Optional[List[str]] = []
+    note: Optional[str] = ""
+
+
+class NotebookEntryUpdate(BaseModel):
+    note: Optional[str] = None
+    translations: Optional[List[str]] = None
+    examples: Optional[List[str]] = None
+    alternatives: Optional[List[str]] = None
+
+
+class NotebookEntryResponse(BaseModel):
+    id: int
+    user_id: int
+    phrase: str
+    translations: List[str] = []
+    examples: List[str] = []
+    alternatives: List[str] = []
+    note: Optional[str] = ""
+    created_at: datetime
+    last_reviewed_at: Optional[datetime] = None
+    review_count: int = 0
+    
+    class Config:
+        from_attributes = True

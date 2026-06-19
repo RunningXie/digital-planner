@@ -35,3 +35,25 @@ class Diary(Base):
     
     # Relationship
     user = relationship("User", back_populates="diaries")
+
+
+class NotebookEntry(Base):
+    __tablename__ = "notebook_entries"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    phrase = Column(String(200), nullable=False, index=True)  # Original phrase searched
+    translations = Column(JSON, default=list)  # Translations from AI
+    examples = Column(JSON, default=list)  # Example sentences
+    alternatives = Column(JSON, default=list)  # Alternative expressions
+    note = Column(Text, nullable=True)  # User's personal note
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_reviewed_at = Column(DateTime, nullable=True)
+    review_count = Column(Integer, default=0)
+    
+    # Relationship
+    user = relationship("User", back_populates="notebook_entries")
+
+
+# Add relationship to User
+User.notebook_entries = relationship("NotebookEntry", back_populates="user", cascade="all, delete-orphan")

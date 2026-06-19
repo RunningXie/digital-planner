@@ -6,6 +6,180 @@
     <title>我的日记 - Dear Diary</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
+        /* ========== 翻开日记本动画 ========== */
+        .diary-opening-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #f5e6d3 0%, #e8d5b7 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .diary-opening-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .diary-book {
+            width: 300px;
+            height: 400px;
+            position: relative;
+            perspective: 1500px;
+            transform-style: preserve-3d;
+        }
+
+        .diary-cover {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #8b6914 0%, #d4a574 50%, #8b6914 100%);
+            border-radius: 0 15px 15px 0;
+            box-shadow:
+                0 0 20px rgba(0, 0, 0, 0.3),
+                inset 0 0 30px rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transform-origin: left center;
+            animation: openCover 1.5s ease-in-out forwards;
+            animation-delay: 0.8s;
+            z-index: 2;
+        }
+
+        .diary-cover::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, #6b5a1e 0%, #8b6914 100%);
+            border-radius: 3px 0 0 3px;
+        }
+
+        .diary-cover-title {
+            color: #fffef7;
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-bottom: 1rem;
+            font-family: 'Georgia', serif;
+        }
+
+        .diary-cover-subtitle {
+            color: #fffef7;
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .diary-cover-decoration {
+            position: absolute;
+            bottom: 30px;
+            width: 60%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #fffef7, transparent);
+            opacity: 0.5;
+        }
+
+        .diary-pages {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #fffef7 0%, #f5f0e1 100%);
+            border-radius: 0 15px 15px 0;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .diary-pages::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(90deg, #e8e4d9 0%, #f5f0e1 100%);
+            border-radius: 3px 0 0 3px;
+        }
+
+        .diary-lines {
+            width: 80%;
+            height: 60%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .diary-line {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #d4a574, transparent);
+            opacity: 0.3;
+            animation: fadeInLine 0.3s ease forwards;
+            opacity: 0;
+        }
+
+        .diary-line:nth-child(1) { animation-delay: 1.8s; }
+        .diary-line:nth-child(2) { animation-delay: 1.9s; }
+        .diary-line:nth-child(3) { animation-delay: 2.0s; }
+        .diary-line:nth-child(4) { animation-delay: 2.1s; }
+        .diary-line:nth-child(5) { animation-delay: 2.2s; }
+        .diary-line:nth-child(6) { animation-delay: 2.3s; }
+        .diary-line:nth-child(7) { animation-delay: 2.4s; }
+        .diary-line:nth-child(8) { animation-delay: 2.5s; }
+
+        @keyframes openCover {
+            0% {
+                transform: rotateY(0deg);
+            }
+            100% {
+                transform: rotateY(-160deg);
+                z-index: 1;
+            }
+        }
+
+        @keyframes fadeInLine {
+            0% {
+                opacity: 0;
+                transform: scaleX(0);
+            }
+            100% {
+                opacity: 0.3;
+                transform: scaleX(1);
+            }
+        }
+
+        .diary-opening-overlay.hide-animation {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .diary-book {
+                width: 240px;
+                height: 320px;
+            }
+
+            .diary-cover-title {
+                font-size: 1.4rem;
+            }
+
+            .diary-cover-subtitle {
+                font-size: 0.9rem;
+            }
+        }
+
         .diaries-container {
             max-width: 800px;
             margin: 0 auto;
@@ -161,7 +335,7 @@
         
         .empty-state {
             text-align: center;
-            padding: 4rem 2rem;
+            padding: 3rem;
             color: var(--warm-text-light);
         }
         
@@ -169,13 +343,185 @@
             font-size: 4rem;
             margin-bottom: 1rem;
         }
+        
+        /* 天气主题样式 */
+        body.weather-sunny {
+            --warm-bg: #fff8e7;
+            --warm-card: #fffef5;
+            --warm-primary: #f4c542;
+            --warm-primary-dark: #d4a835;
+            --warm-secondary: #fff0c7;
+            --warm-text: #5c4a1f;
+            --warm-text-light: #a08040;
+            --warm-border: #f0e0a0;
+        }
+        
+        body.weather-rainy {
+            --warm-bg: #e8eef2;
+            --warm-card: #f0f4f8;
+            --warm-primary: #6b8ba4;
+            --warm-primary-dark: #4a6d8a;
+            --warm-secondary: #d0dce8;
+            --warm-text: #3d4a5c;
+            --warm-text-light: #6b7d8f;
+            --warm-border: #c0d0e0;
+        }
+        
+        body.weather-cloudy {
+            --warm-bg: #e5e8eb;
+            --warm-card: #f0f2f4;
+            --warm-primary: #8c9aa8;
+            --warm-primary-dark: #6b7a8a;
+            --warm-secondary: #d8dde3;
+            --warm-text: #4a5568;
+            --warm-text-light: #718096;
+            --warm-border: #c8cdd3;
+        }
+        
+        body.weather-snowy {
+            --warm-bg: #f5f8fa;
+            --warm-card: #ffffff;
+            --warm-primary: #a8c5d8;
+            --warm-primary-dark: #7ba3bd;
+            --warm-secondary: #e0ecf4;
+            --warm-text: #4a6070;
+            --warm-text-light: #7a93a8;
+            --warm-border: #c8dce8;
+        }
+        
+        body.weather-stormy {
+            --warm-bg: #2d3436;
+            --warm-card: #3d484c;
+            --warm-primary: #6c5ce7;
+            --warm-primary-dark: #4834d4;
+            --warm-secondary: #4a5568;
+            --warm-text: #dfe6e9;
+            --warm-text-light: #a0aec0;
+            --warm-border: #4a5568;
+        }
+        
+        body.weather-foggy {
+            --warm-bg: #eceff1;
+            --warm-card: #f5f7f9;
+            --warm-primary: #90a4ae;
+            --warm-primary-dark: #607d8b;
+            --warm-secondary: #cfd8dc;
+            --warm-text: #546e7a;
+            --warm-text-light: #78909c;
+            --warm-border: #cfd8dc;
+        }
+        
+        body.weather-night {
+            --warm-bg: #1a1a2e;
+            --warm-card: #252542;
+            --warm-primary: #7c6aef;
+            --warm-primary-dark: #5a4ad1;
+            --warm-secondary: #3a3a5c;
+            --warm-text: #e0e0f0;
+            --warm-text-light: #a0a0c0;
+            --warm-border: #4a4a6c;
+        }
+        
+        body.weather-sunset {
+            --warm-bg: #fff0e6;
+            --warm-card: #fff5ee;
+            --warm-primary: #ff8a65;
+            --warm-primary-dark: #e57254;
+            --warm-secondary: #ffd0bc;
+            --warm-text: #5c3a2d;
+            --warm-text-light: #a07060;
+            --warm-border: #f0c0a8;
+        }
+        
+        /* 夜间模式特殊样式 */
+        body.weather-night .navbar {
+            background: linear-gradient(135deg, #252542 0%, #3a3a5c 100%);
+        }
+        
+        body.weather-night .logo {
+            color: #c4b5fd;
+        }
+        
+        body.weather-night .nav-links a {
+            color: #d0d0e8;
+        }
+        
+        body.weather-night .nav-links a:hover {
+            background-color: #3a3a5c;
+            color: #c4b5fd;
+        }
+        
+        body.weather-night .diary-card {
+            border: 1px solid #4a4a6c;
+        }
+        
+        /* 暴风雨模式特殊样式 */
+        body.weather-stormy .navbar {
+            background: linear-gradient(135deg, #3d484c 0%, #2d3436 100%);
+        }
+        
+        body.weather-stormy .logo {
+            color: #a29bfe;
+        }
+        
+        body.weather-stormy .nav-links a {
+            color: #d0dce8;
+        }
+        
+        body.weather-stormy .nav-links a:hover {
+            background-color: #4a5568;
+            color: #a29bfe;
+        }
+        
+        body.weather-stormy .diary-card {
+            border: 1px solid #4a5568;
+        }
     </style>
 </head>
 <body>
+    <!-- 翻开日记本动画 -->
+    <div class="diary-opening-overlay" id="diaryOpeningOverlay">
+        <div class="diary-book">
+            <div class="diary-pages">
+                <div class="diary-lines">
+                    <div class="diary-line"></div>
+                    <div class="diary-line"></div>
+                    <div class="diary-line"></div>
+                    <div class="diary-line"></div>
+                    <div class="diary-line"></div>
+                    <div class="diary-line"></div>
+                    <div class="diary-line"></div>
+                    <div class="diary-line"></div>
+                </div>
+            </div>
+            <div class="diary-cover">
+                <div class="diary-cover-title">My Diary</div>
+                <div class="diary-cover-subtitle">我的日记</div>
+                <div class="diary-cover-decoration"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="diaries-container">
-        <div class="diaries-header">
+        <div class="diaries-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <h1>📚 我的日记</h1>
-            <a href="/write" class="btn btn-primary">✍️ 写日记</a>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <div class="weather-selector" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--warm-card); border-radius: 20px; box-shadow: var(--shadow-soft); border: 1px solid var(--warm-border);">
+                    <span id="weatherIcon" style="font-size: 1.2rem;">☀️</span>
+                    <select id="weatherSelect" onchange="changeWeather(this.value)" style="padding: 0.4rem 0.8rem; border: 1px solid var(--warm-border); border-radius: 8px; background: var(--warm-bg); color: var(--warm-text); font-size: 0.9rem; cursor: pointer;">
+                        <option value="sunny">晴天</option>
+                        <option value="cloudy">多云</option>
+                        <option value="rainy">雨天</option>
+                        <option value="snowy">雪天</option>
+                        <option value="stormy">暴风雨</option>
+                        <option value="foggy">雾天</option>
+                        <option value="sunset">黄昏</option>
+                        <option value="night">夜晚</option>
+                    </select>
+                </div>
+                <a href="/write" class="btn btn-primary">✍️ 写日记</a>
+                <a href="/notebook" class="btn btn-secondary">📓 笔记本</a>
+            </div>
         </div>
         
         <div id="diariesList">
@@ -209,6 +555,80 @@
         if (!isLoggedIn()) {
             window.location.href = '/login';
         }
+
+        // ========== 翻开日记本动画控制 ==========
+        function initOpeningAnimation() {
+            // 检查是否需要显示动画（首次访问或刷新时显示）
+            const hasSeenAnimation = sessionStorage.getItem('hasSeenDiariesAnimation');
+
+            if (hasSeenAnimation) {
+                // 已经看过动画，直接隐藏
+                const overlay = document.getElementById('diaryOpeningOverlay');
+                if (overlay) {
+                    overlay.classList.add('hide-animation');
+                }
+            } else {
+                // 首次访问，显示动画
+                sessionStorage.setItem('hasSeenDiariesAnimation', 'true');
+
+                // 动画结束后隐藏遮罩层
+                setTimeout(() => {
+                    const overlay = document.getElementById('diaryOpeningOverlay');
+                    if (overlay) {
+                        overlay.classList.add('fade-out');
+                        setTimeout(() => {
+                            overlay.classList.add('hide-animation');
+                        }, 500);
+                    }
+                }, 2800); // 动画总时长
+            }
+        }
+
+        // 页面加载时初始化动画
+        initOpeningAnimation();
+
+        // 天气图标映射
+        const weatherIcons = {
+            sunny: '☀️',
+            cloudy: '☁️',
+            rainy: '🌧️',
+            snowy: '❄️',
+            stormy: '⛈️',
+            foggy: '🌫️',
+            sunset: '🌅',
+            night: '🌙'
+        };
+        
+        // 切换天气主题
+        function changeWeather(weather) {
+            // 移除所有天气类
+            document.body.className = '';
+            document.body.classList.add(`weather-${weather}`);
+            
+            // 更新图标
+            const icon = document.getElementById('weatherIcon');
+            if (icon) {
+                icon.textContent = weatherIcons[weather] || '☀️';
+            }
+            
+            // 保存选择到 localStorage
+            localStorage.setItem('diary_weather', weather);
+        }
+        
+        // 页面加载时恢复天气选择
+        function initWeather() {
+            const savedWeather = localStorage.getItem('diary_weather');
+            if (savedWeather) {
+                const select = document.getElementById('weatherSelect');
+                if (select) {
+                    select.value = savedWeather;
+                }
+                changeWeather(savedWeather);
+            }
+        }
+        
+        // 初始化天气
+        initWeather();
         
         // 加载日记列表
         async function loadDiaries() {
@@ -223,7 +643,6 @@
                             <div class="empty-state-icon">📝</div>
                             <h3>还没有日记</h3>
                             <p>开始写下你的第一篇英文日记吧！</p>
-                            <a href="/write" class="btn btn-primary" style="margin-top: 1rem;">去写日记</a>
                         </div>
                     `;
                     return;
