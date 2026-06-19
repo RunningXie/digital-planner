@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理 - Dear Diary</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f5e6d3 0%, #e8d5b7 100%);
+            min-height: 100vh;
+        }
+
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .admin-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #5d4e37;
+        }
+
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background: #d4a574;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c49564;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #8b6914;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #5d4e37;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #d4a574;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f5f0e1;
+            font-weight: bold;
+            color: #5d4e37;
+        }
+
+        tr:hover {
+            background: #faf8f5;
+        }
+
+        .progress-bar {
+            height: 12px;
+            background: #f0e6d8;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #d4a574, #8b6914);
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 250px;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .bar-item {
+            flex: 1;
+            background: linear-gradient(180deg, #d4a574, #8b6914);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: height 0.5s ease;
+        }
+
+        .bar-item:hover {
+            background: linear-gradient(180deg, #e4b584, #9b7924);
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: #666;
+            white-space: nowrap;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #5d4e37;
+        }
+
+        @media (max-width: 768px) {
+            .admin-container {
+                padding: 1rem;
+            }
+
+            .admin-title {
+                font-size: 1.5rem;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1 class="admin-title">📊 后台管理</h1>
+            <button class="logout-btn" onclick="logout()">退出登录</button>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalUsers">0</div>
+                <div class="stat-label">总用户数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalDiaries">0</div>
+                <div class="stat-label">总日记数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeUsers">0</div>
+                <div class="stat-label">今日活跃</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="avgDiariesPerUser">0</div>
+                <div class="stat-label">人均日记数</div>
+            </div>
+        </div>
+
+        <!-- 每日数据趋势 -->
+        <div class="section">
+            <h2 class="section-title">📈 每日日记数量趋势（近7天）</h2>
+            <div class="chart-container">
+                <div class="bar-chart" id="dailyChart">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户列表 -->
+        <div class="section">
+            <h2 class="section-title">👥 活跃用户排行</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>排名</th>
+                            <th>用户名</th>
+                            <th>邮箱</th>
+                            <th>日记数量</th>
+                            <th>注册时间</th>
+                            <th>最后活跃</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <tr>
+                            <td colspan="6" class="loading">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 笔记本统计 -->
+        <div class="section">
+            <h2 class="section-title">📖 笔记本使用统计</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalNotes">0</div>
+                    <div class="stat-label">总笔记数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="usersWithNotes">0</div>
+                    <div class="stat-label">使用笔记用户</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        // 检查登录状态
+        async function checkAuth() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/check`, {
+                    credentials: 'include'
+                });
+                if (!response.ok) {
+                    window.location.href = '/admin/login';
+                }
+            } catch {
+                window.location.href = '/admin/login';
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            fetch(`${API_BASE}/admin/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            }).then(() => {
+                window.location.href = '/admin/login';
+            });
+        }
+
+        // 获取统计数据
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/stats`, {
+                    credentials: 'include'
+                });
+                const data = await response.json();
+
+                // 更新统计卡片
+                document.getElementById('totalUsers').textContent = data.total_users;
+                document.getElementById('totalDiaries').textContent = data.total_diaries;
+                document.getElementById('activeUsers').textContent = data.today_active_users;
+                document.getElementById('avgDiariesPerUser').textContent = data.avg_diaries_per_user;
+                document.getElementById('totalNotes').textContent = data.total_notes;
+                document.getElementById('usersWithNotes').textContent = data.users_with_notes;
+
+                // 渲染图表
+                renderChart(data.daily_diaries);
+                renderUserList(data.top_users);
+            } catch (error) {
+                console.error('加载统计数据失败:', error);
+            }
+        }
+
+        // 渲染柱状图
+        function renderChart(dailyData) {
+            const chart = document.getElementById('dailyChart');
+            chart.innerHTML = '';
+
+            const maxValue = Math.max(...dailyData.map(d => d.count));
+
+            dailyData.forEach(item => {
+                const bar = document.createElement('div');
+                bar.className = 'bar-item';
+                bar.style.height = maxValue > 0 ? `${(item.count / maxValue) * 100}%` : '5%';
+                
+                const label = document.createElement('div');
+                label.className = 'bar-label';
+                label.textContent = item.date;
+                
+                const value = document.createElement('div');
+                value.className = 'bar-value';
+                value.textContent = item.count;
+                
+                bar.appendChild(value);
+                bar.appendChild(label);
+                chart.appendChild(bar);
+            });
+        }
+
+        // 渲染用户列表
+        function renderUserList(users) {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+
+            users.forEach((user, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${user.diary_count}</td>
+                    <td>${formatDate(user.created_at)}</td>
+                    <td>${formatDate(user.last_active)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 格式化日期
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            loadStats();
+        });
+    </script>
+</body>
+</html>

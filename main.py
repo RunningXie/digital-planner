@@ -1,15 +1,17 @@
 import json
+import logging
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from typing import List
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
-from database import init_db, get_db
+from database import init_db, get_db, engine
 from models import User, Diary, NotebookEntry
 from schemas import (
     UserCreate, UserResponse, UserLogin,
@@ -25,13 +27,62 @@ from auth import (
 from ai_service import ai_service
 from config import get_settings
 
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
 
 # Lifespan handler for startup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # 启动时打印数据库连接信息
+    db_url = settings.database_url
+    is_postgresql = "postgresql" in db_url
+    
+    # 隐藏密码
+    if "@" in db_url:
+        parts = db_url.split("@")
+        safe_url = parts[0].rsplit(":", 1)[0] + ":***@" + parts[1]
+    else:
+        safe_url = db_url
+    
+    logger.info("=" * 60)
+    logger.info("🚀 Dear Diary 服务启动中...")
+    logger.info("=" * 60)
+    logger.info(f"📊 数据库类型: {'PostgreSQL' if is_postgresql else 'SQLite'}")
+    logger.info(f"🔗 数据库地址: {safe_url}")
+    
+    # 测试数据库连接
+    try:
+        with engine.connect() as conn:
+            if is_postgresql:
+                result = conn.execute(text("SELECT version();"))
+                version = result.fetchone()[0]
+                logger.info(f"✅ PostgreSQL 连接成功!")
+                logger.info(f"📌 数据库版本: {version[:80]}...")
+            else:
+                result = conn.execute(text("SELECT sqlite_version();"))
+                version = result.fetchone()[0]
+                logger.info(f"✅ SQLite 连接成功!")
+                logger.info(f"📌 SQLite 版本: {version}")
+    except Exception as e:
+        logger.error(f"❌ 数据库连接失败: {e}")
+        logger.error("请检查数据库配置和网络连接!")
+    
+    logger.info("=" * 60)
+    
+    # 初始化数据库表
     init_db()
+    logger.info("✅ 数据库表初始化完成")
+    
     yield
+    
+    # 关闭时打印
+    logger.info("👋 Dear Diary 服务已关闭")
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -70,6 +121,25 @@ async def health_check():
     return {"status": "healthy"}
 
 
+# Database debug endpoint
+@app.get("/debug/db")
+async def debug_database():
+    """调试接口：显示当前数据库配置"""
+    db_url = settings.database_url
+    # 隐藏密码
+    if "@" in db_url:
+        parts = db_url.split("@")
+        safe_url = parts[0].rsplit(":", 1)[0] + ":***@" + parts[1]
+    else:
+        safe_url = db_url
+    
+    return {
+        "database_type": "PostgreSQL" if "postgresql" in db_url else "SQLite",
+        "database_url": safe_url,
+        "ai_model": settings.ai_model
+    }
+
+
 # Page routes
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
@@ -99,6 +169,134 @@ async def diaries_page(request: Request):
 @app.get("/notebook", response_class=HTMLResponse)
 async def notebook_page(request: Request):
     return render_template("notebook.html", request)
+
+
+# Admin Routes
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return render_template("admin.html", request)
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request):
+    return render_template("admin_login.html", request)
+
+
+# Admin API Routes
+@app.post("/api/admin/login")
+async def admin_login(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+    username = data.get("username")
+    password = data.get("password")
+    
+    # 管理员账户（硬编码，实际应用中应存储在数据库或环境变量中）
+    ADMIN_USERNAME = "admin"
+    ADMIN_PASSWORD = "admin123"
+    
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        # 设置登录状态（使用session）
+        request.session["admin_logged_in"] = True
+        return {"message": "Login successful"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+
+
+@app.post("/api/admin/logout")
+async def admin_logout(request: Request):
+    request.session.pop("admin_logged_in", None)
+    return {"message": "Logout successful"}
+
+
+@app.get("/api/admin/check")
+async def admin_check(request: Request):
+    if request.session.get("admin_logged_in"):
+        return {"authenticated": True}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
+
+@app.get("/api/admin/stats")
+async def admin_stats(request: Request, db: Session = Depends(get_db)):
+    if not request.session.get("admin_logged_in"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    
+    # 总用户数
+    total_users = db.query(User).count()
+    
+    # 总日记数
+    total_diaries = db.query(Diary).count()
+    
+    # 今日活跃用户（过去24小时有活动的用户）
+    today = datetime.now()
+    yesterday = today - timedelta(days=1)
+    today_active_users = db.query(User).filter(
+        User.last_active >= yesterday
+    ).count()
+    
+    # 人均日记数
+    avg_diaries_per_user = round(total_diaries / max(total_users, 1), 1)
+    
+    # 总笔记数
+    total_notes = db.query(NotebookEntry).count()
+    
+    # 使用笔记的用户数
+    users_with_notes = db.query(NotebookEntry.user_id).distinct().count()
+    
+    # 近7天每日日记数量
+    daily_diaries = []
+    for i in range(6, -1, -1):
+        date = today - timedelta(days=i)
+        start_of_day = datetime(date.year, date.month, date.day)
+        end_of_day = start_of_day + timedelta(days=1)
+        count = db.query(Diary).filter(
+            Diary.created_at >= start_of_day,
+            Diary.created_at < end_of_day
+        ).count()
+        daily_diaries.append({
+            "date": f"{date.month}/{date.day}",
+            "count": count
+        })
+    
+    # 活跃用户排行（按日记数量）
+    top_users = db.query(
+        User.username,
+        User.email,
+        User.created_at,
+        User.last_active,
+        db.func.count(Diary.id).label("diary_count")
+    ).outerjoin(Diary, User.id == Diary.user_id).group_by(User.id).order_by(
+        db.func.count(Diary.id).desc()
+    ).limit(10).all()
+    
+    top_users_list = []
+    for user in top_users:
+        top_users_list.append({
+            "username": user.username,
+            "email": user.email,
+            "diary_count": user.diary_count,
+            "created_at": user.created_at.isoformat() if user.created_at else None,
+            "last_active": user.last_active.isoformat() if user.last_active else None
+        })
+    
+    return {
+        "total_users": total_users,
+        "total_diaries": total_diaries,
+        "today_active_users": today_active_users,
+        "avg_diaries_per_user": avg_diaries_per_user,
+        "total_notes": total_notes,
+        "users_with_notes": users_with_notes,
+        "daily_diaries": daily_diaries,
+        "top_users": top_users_list
+    }
 
 
 # API Routes - Auth
