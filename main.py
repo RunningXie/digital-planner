@@ -40,7 +40,19 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时打印数据库连接信息
+    import os
+    env_db_url = os.environ.get("DATABASE_URL", "未设置")
     db_url = settings.database_url
+    
+    logger.info("=" * 60)
+    logger.info("🚀 Dear Diary 服务启动中...")
+    logger.info("=" * 60)
+    
+    # 调试：打印环境变量和配置
+    logger.info(f"🔍 环境变量 DATABASE_URL: {env_db_url}")
+    logger.info(f"🔍 Settings.database_url: {db_url}")
+    logger.info(f"🔍 两者是否相同: {'是' if env_db_url == db_url else '否 (使用默认值)'}")
+    
     is_postgresql = "postgresql" in db_url
     
     # 隐藏密码
@@ -50,9 +62,6 @@ async def lifespan(app: FastAPI):
     else:
         safe_url = db_url
     
-    logger.info("=" * 60)
-    logger.info("🚀 Dear Diary 服务启动中...")
-    logger.info("=" * 60)
     logger.info(f"📊 数据库类型: {'PostgreSQL' if is_postgresql else 'SQLite'}")
     logger.info(f"🔗 数据库地址: {safe_url}")
     
