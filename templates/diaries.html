@@ -506,19 +506,6 @@
         <div class="diaries-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <h1>📚 我的日记</h1>
             <div style="display: flex; gap: 1rem; align-items: center;">
-                <div class="weather-selector" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--warm-card); border-radius: 20px; box-shadow: var(--shadow-soft); border: 1px solid var(--warm-border);">
-                    <span id="weatherIcon" style="font-size: 1.2rem;">☀️</span>
-                    <select id="weatherSelect" onchange="changeWeather(this.value)" style="padding: 0.4rem 0.8rem; border: 1px solid var(--warm-border); border-radius: 8px; background: var(--warm-bg); color: var(--warm-text); font-size: 0.9rem; cursor: pointer;">
-                        <option value="sunny">晴天</option>
-                        <option value="cloudy">多云</option>
-                        <option value="rainy">雨天</option>
-                        <option value="snowy">雪天</option>
-                        <option value="stormy">暴风雨</option>
-                        <option value="foggy">雾天</option>
-                        <option value="sunset">黄昏</option>
-                        <option value="night">夜晚</option>
-                    </select>
-                </div>
                 <a href="/write" class="btn btn-primary">✍️ 写日记</a>
                 <a href="/notebook" class="btn btn-secondary">📓 笔记本</a>
             </div>

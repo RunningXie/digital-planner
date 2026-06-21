@@ -19,7 +19,7 @@
 | 数据库 | SQLAlchemy + SQLite |
 | AI | 兼容 OpenAI-compatible API (智谱清言 GLM-4) |
 | 认证 | JWT |
-| 部署 | Docker + Docker Compose |
+| 部署 | Docker |
 
 ## 项目结构
 
@@ -49,7 +49,6 @@ digital-planner/
 │   └── test_phrase_search.py # 短语搜索集成测试
 ├── .env                   # 环境变量（API key 等）
 ├── Dockerfile             # Docker镜像
-├── docker-compose.yml     # Docker编排
 └── README.md              # 项目说明文档
 ```
 
@@ -101,7 +100,11 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### Docker部署
 
 ```bash
-docker-compose up -d
+# 构建镜像
+docker build -t dear-diary .
+
+# 运行容器
+docker run -d -p 8000:8000 --env-file .env dear-diary
 ```
 
 ### 运行测试
@@ -250,17 +253,37 @@ saveDiary()
 
 ## 腾讯云部署指南
 
-1. 在腾讯云服务器上安装Docker和Docker Compose
+### 使用 Dokploy 部署（推荐）
+
+1. 在腾讯云服务器上安装 Docker 和 Dokploy
+
+2. 在 Dokploy 控制台中添加应用，选择 Dockerfile 部署方式
+
+3. 配置环境变量：
+   ```
+   DATABASE_URL=postgresql://user:password@host:5432/dbname
+   AI_API_KEY=your-api-key
+   AI_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+   AI_MODEL=glm-4.5-air
+   SECRET_KEY=your-secret-key
+   ```
+
+4. 部署应用
+
+### 手动 Docker 部署
+
+1. 在腾讯云服务器上安装 Docker
 
 2. 复制项目文件到服务器:
 ```bash
 scp -r digital-planner/ root@your-server-ip:/opt/
 ```
 
-3. 在服务器上启动:
+3. 在服务器上构建并运行:
 ```bash
 cd /opt/digital-planner
-docker-compose up -d
+docker build -t dear-diary .
+docker run -d -p 8000:8000 --env-file .env dear-diary
 ```
 
 4. 配置Nginx反向代理（可选）:

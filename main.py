@@ -1,5 +1,6 @@
 import json
 import logging
+import aiohttp
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates

@@ -99,6 +99,15 @@ def client(db_session: Session):
 @pytest.fixture
 def mock_ai_service():
     """Mock the AI service to return a controlled response."""
+    async def mock_stream():
+        yield {
+            "original": "This is a test sentence.",
+            "corrected": "This is a test sentence.",
+            "explanation": "No errors found.",
+            "suggestions": ["This is a sample sentence."],
+        }
+        yield {"type": "optimized", "optimized_content": "This is a test sentence."}
+
     with patch("main.ai_service") as mock_ai:
         mock_ai.correct_diary = AsyncMock(return_value={
             "corrections": [
@@ -111,6 +120,7 @@ def mock_ai_service():
             ],
             "optimized_content": "This is a test sentence.",
         })
+        mock_ai.correct_diary_stream = mock_stream
         mock_ai.search_phrase = AsyncMock(return_value={
             "phrase": "test",
             "translations": ["测试"],

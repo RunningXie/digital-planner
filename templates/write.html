@@ -653,15 +653,39 @@
             <div class="editor-section">
                 <div class="editor-toolbar">
                     <span style="color: var(--warm-text-light); font-size: 0.9rem;">用英文写下今天的故事...</span>
-                    <div id="autoSaveStatus" style="color: #7a9e7e; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span id="autoSaveIcon">✓</span>
-                        <span id="autoSaveText">已自动保存</span>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <!-- 实时批改开关 -->
+                        <div style="position: relative; display: flex; align-items: center;" onmouseenter="document.getElementById('realtimeTooltip').style.display='block'" onmouseleave="document.getElementById('realtimeTooltip').style.display='none'">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; color: var(--warm-text-light);">
+                                <span> 逐句批改</span>
+                                <div style="position: relative; width: 40px; height: 20px;">
+                                    <input type="checkbox" id="realtimeToggle" style="opacity: 0; width: 0; height: 0;" onchange="toggleRealtimeCorrection()">
+                                    <span id="realtimeToggleSlider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 20px;"></span>
+                                    <span id="realtimeToggleKnob" style="position: absolute; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%;"></span>
+                                </div>
+                            </label>
+                            <!-- 隐藏的解释提示 -->
+                            <div id="realtimeTooltip" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 0.5rem; padding: 0.75rem; background: var(--warm-card); border: 1px solid var(--warm-border); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 0.8rem; color: var(--warm-text); max-width: 280px; z-index: 100; white-space: normal;">
+                                <strong>逐句批改功能说明：</strong><br>
+                                开启后，当您输入句号（.）、感叹号（!）或问号（?）时，系统会自动对当前句子进行语法和用词检查，并提供修改建议。适合需要即时反馈的学习场景。
+                            </div>
+                        </div>
+                        <div id="autoSaveStatus" style="color: #7a9e7e; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span id="autoSaveIcon">✓</span>
+                            <span id="autoSaveText">已自动保存</span>
+                        </div>
                     </div>
                 </div>
                 
-                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                    <input type="date" id="diaryDate" class="form-input" style="flex: 0 0 150px; padding: 0.5rem;">
-                    <input type="text" id="diaryTitle" class="title-input" placeholder="标题（可选）..." style="flex: 1; margin-bottom: 0;">
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start;">
+                    <div style="flex: 0 0 150px;">
+                        <label style="display: block; font-size: 0.85rem; color: var(--warm-text-light); margin-bottom: 0.3rem;">📅 日期</label>
+                        <input type="date" id="diaryDate" class="form-input" style="width: 100%; padding: 0.5rem;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 0.85rem; color: var(--warm-text-light); margin-bottom: 0.3rem;">📝 标题（可选）</label>
+                        <input type="text" id="diaryTitle" class="title-input" placeholder="标题（可选）..." style="width: 100%; margin-bottom: 0;">
+                    </div>
                 </div>
                 
                 <textarea id="diaryContent" class="diary-textarea" placeholder="Start writing your diary in English..."></textarea>
@@ -922,9 +946,48 @@
         let _sentenceCorrectionQueue = [];
         let _isCorrecting = false;
         let _lastCorrectedSentence = '';
+        let _realtimeEnabled = false; // 默认关闭
 
-        // 监听输入，检测句号
+        // 初始化实时批改开关状态（默认关闭）
+        function initRealtimeToggle() {
+            _realtimeEnabled = false; // 始终默认关闭
+            const checkbox = document.getElementById('realtimeToggle');
+            checkbox.checked = false;
+            updateToggleUI();
+        }
+
+        // 切换实时批改开关
+        function toggleRealtimeCorrection() {
+            const checkbox = document.getElementById('realtimeToggle');
+            _realtimeEnabled = checkbox.checked;
+            localStorage.setItem('realtime_correction_enabled', _realtimeEnabled.toString());
+            updateToggleUI();
+            
+            // 如果关闭，清空队列
+            if (!_realtimeEnabled) {
+                _sentenceCorrectionQueue = [];
+                _lastCorrectedSentence = '';
+                document.getElementById('realTimeCorrections').style.display = 'none';
+            }
+        }
+
+        // 更新开关UI
+        function updateToggleUI() {
+            const slider = document.getElementById('realtimeToggleSlider');
+            const knob = document.getElementById('realtimeToggleKnob');
+            if (_realtimeEnabled) {
+                slider.style.backgroundColor = 'var(--warm-primary)';
+                knob.style.transform = 'translateX(20px)';
+            } else {
+                slider.style.backgroundColor = '#ccc';
+                knob.style.transform = 'translateX(0)';
+            }
+        }
+
+        // 监听输入，检测句号（仅在开关开启时触发）
         document.getElementById('diaryContent').addEventListener('input', function(e) {
+            if (!_realtimeEnabled) return; // 开关关闭时不触发
+            
             const content = e.target.value;
             const lastPeriodIndex = content.lastIndexOf('.');
             const lastExclaimIndex = content.lastIndexOf('!');
@@ -1369,11 +1432,23 @@
                 }
 
             } catch (error) {
-                listDiv.innerHTML = `<div class="correction-card" style="border-left-color: #e74c3c;">
-                    <div style="color: #e74c3c; font-weight: bold;">⚠️ 批改出错</div>
-                    <div style="color: var(--warm-text-light); margin-top: 0.5rem;">${error.message}</div>
-                </div>`;
-                showMessage('批改失败：' + error.message, 'error');
+                // 如果优化后的版本已经显示，说明部分批改成功，追加错误提示而非覆盖
+                if (optimizedDiv.style.display === 'block') {
+                    const errorCard = document.createElement('div');
+                    errorCard.className = 'correction-card';
+                    errorCard.style.borderLeftColor = '#e74c3c';
+                    errorCard.innerHTML = `
+                        <div style="color: #e74c3c; font-weight: bold;">⚠️ 部分批改失败</div>
+                        <div style="color: var(--warm-text-light); margin-top: 0.5rem;">${error.message} — 已批改的句子和优化版本已显示，未批改的句子已跳过。</div>
+                    `;
+                    listDiv.appendChild(errorCard);
+                } else {
+                    listDiv.innerHTML = `<div class="correction-card" style="border-left-color: #e74c3c;">
+                        <div style="color: #e74c3c; font-weight: bold;">⚠️ 批改出错</div>
+                        <div style="color: var(--warm-text-light); margin-top: 0.5rem;">${error.message}</div>
+                    </div>`;
+                    showMessage('批改失败：' + error.message, 'error');
+                }
             } finally {
                 _isSaving = false;
                 if (saveBtn) saveBtn.disabled = false;
@@ -1445,6 +1520,7 @@
         // 页面加载完成后启动自动保存
         document.addEventListener('DOMContentLoaded', function() {
             startAutoSave();
+            initRealtimeToggle();
         });
     </script>
 </body>
