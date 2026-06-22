@@ -5,6 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>注册 - Dear Diary</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .verification-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .verification-group .form-input {
+            flex: 1;
+        }
+        .btn-send-code {
+            white-space: nowrap;
+            min-width: 120px;
+            background: var(--warm-primary-light);
+            color: var(--warm-primary-dark);
+            border: 1px solid var(--warm-primary);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-send-code:hover:not(:disabled) {
+            background: var(--warm-primary);
+            color: white;
+        }
+        .btn-send-code:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .verification-status {
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        .verification-status.success {
+            color: #4caf50;
+            display: block;
+        }
+        .verification-status.error {
+            color: #f44336;
+            display: block;
+        }
+        .btn-register {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .btn-register.enabled {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
 </head>
 <body>
     <div class="auth-container">
@@ -22,7 +72,17 @@
                 
                 <div class="form-group">
                     <label class="form-label">邮箱</label>
-                    <input type="email" class="form-input" id="email" required placeholder="请输入邮箱">
+                    <div class="verification-group">
+                        <input type="email" class="form-input" id="email" required placeholder="请输入邮箱">
+                        <button type="button" class="btn-send-code" id="sendCodeBtn" disabled>发送验证码</button>
+                    </div>
+                    <div class="verification-status" id="emailStatus"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">验证码</label>
+                    <input type="text" class="form-input" id="verificationCode" required placeholder="请输入6位验证码" maxlength="6" pattern="[0-9]{6}">
+                    <div class="verification-status" id="codeStatus"></div>
                 </div>
                 
                 <div class="form-group">
@@ -30,7 +90,7 @@
                     <input type="password" class="form-input" id="password" required placeholder="请输入密码（至少6位）" minlength="6">
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-full">注册</button>
+                <button type="submit" class="btn btn-primary btn-full btn-register" id="registerBtn" disabled>注册</button>
                 <div id="registerMsg" class="message" style="display:none; margin-top:1rem;"></div>
             </form>
             
@@ -44,24 +104,155 @@
 
     <script src="/static/js/app.js"></script>
     <script>
+        let emailVerified = false;
+        let countdown = 0;
+        let countdownTimer = null;
+
+        const emailInput = document.getElementById('email');
+        const sendCodeBtn = document.getElementById('sendCodeBtn');
+        const codeInput = document.getElementById('verificationCode');
+        const registerBtn = document.getElementById('registerBtn');
+        const emailStatus = document.getElementById('emailStatus');
+        const codeStatus = document.getElementById('codeStatus');
+
+        // Enable send code button when email is valid
+        emailInput.addEventListener('input', function() {
+            const isValid = this.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+            sendCodeBtn.disabled = !isValid || emailVerified;
+            if (emailVerified) {
+                emailStatus.textContent = '邮箱已验证 ✓';
+                emailStatus.className = 'verification-status success';
+            }
+        });
+
+        // Send verification code
+        sendCodeBtn.addEventListener('click', async function() {
+            const email = emailInput.value.trim();
+            if (!email) return;
+
+            sendCodeBtn.disabled = true;
+            sendCodeBtn.textContent = '发送中...';
+            emailStatus.className = 'verification-status';
+
+            try {
+                const response = await fetch('/api/auth/send-verification-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    emailStatus.textContent = '验证码已发送，请查收邮箱';
+                    emailStatus.className = 'verification-status success';
+                    startCountdown(60);
+                } else {
+                    emailStatus.textContent = data.detail || '发送失败';
+                    emailStatus.className = 'verification-status error';
+                    sendCodeBtn.disabled = false;
+                    sendCodeBtn.textContent = '发送验证码';
+                }
+            } catch (error) {
+                emailStatus.textContent = '网络错误，请重试';
+                emailStatus.className = 'verification-status error';
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.textContent = '发送验证码';
+            }
+        });
+
+        // Verify code on input
+        codeInput.addEventListener('input', async function() {
+            const code = this.value.trim();
+            if (code.length !== 6) {
+                codeStatus.className = 'verification-status';
+                emailVerified = false;
+                updateRegisterButton();
+                return;
+            }
+
+            const email = emailInput.value.trim();
+            try {
+                const response = await fetch('/api/auth/verify-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code })
+                });
+
+                const data = await response.json();
+
+                if (data.verified) {
+                    emailVerified = true;
+                    codeStatus.textContent = '验证码正确 ✓';
+                    codeStatus.className = 'verification-status success';
+                    emailStatus.textContent = '邮箱已验证 ✓';
+                    emailStatus.className = 'verification-status success';
+                } else {
+                    emailVerified = false;
+                    codeStatus.textContent = data.message || '验证码错误';
+                    codeStatus.className = 'verification-status error';
+                }
+            } catch (error) {
+                codeStatus.textContent = '验证失败，请重试';
+                codeStatus.className = 'verification-status error';
+            }
+
+            updateRegisterButton();
+        });
+
+        function updateRegisterButton() {
+            const password = document.getElementById('password').value;
+            if (emailVerified && password.length >= 6) {
+                registerBtn.classList.add('enabled');
+                registerBtn.disabled = false;
+            } else {
+                registerBtn.classList.remove('enabled');
+                registerBtn.disabled = true;
+            }
+        }
+
+        document.getElementById('password').addEventListener('input', updateRegisterButton);
+
+        function startCountdown(seconds) {
+            countdown = seconds;
+            sendCodeBtn.textContent = `${countdown}s 后重发`;
+            countdownTimer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(countdownTimer);
+                    sendCodeBtn.disabled = false;
+                    sendCodeBtn.textContent = '发送验证码';
+                } else {
+                    sendCodeBtn.textContent = `${countdown}s 后重发`;
+                }
+            }, 1000);
+        }
+
+        // Register form submit
         document.getElementById('registerForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
+            if (!emailVerified) {
+                const msgEl = document.getElementById('registerMsg');
+                msgEl.textContent = '请先验证邮箱';
+                msgEl.className = 'message message-error';
+                msgEl.style.display = 'block';
+                return;
+            }
+
             const username = document.getElementById('username').value;
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            
+
             try {
                 const response = await fetch('/api/auth/register', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, email, password })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     window.location.href = '/login';
                 } else {

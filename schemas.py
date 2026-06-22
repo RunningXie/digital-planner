@@ -122,3 +122,23 @@ class NotebookEntryResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# Email verification schemas
+class SendVerificationCodeRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class VerifyCodeResponse(BaseModel):
+    verified: bool
+    message: str
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str

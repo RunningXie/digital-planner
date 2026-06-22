@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timedelta
 from database import Base
 
 
@@ -57,3 +57,14 @@ class NotebookEntry(Base):
 
 # Add relationship to User
 User.notebook_entries = relationship("NotebookEntry", back_populates="user", cascade="all, delete-orphan")
+
+
+class EmailVerificationCode(Base):
+    __tablename__ = "email_verification_codes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(100), nullable=False, index=True)
+    code = Column(String(10), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False)

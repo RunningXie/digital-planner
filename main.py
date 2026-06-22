@@ -13,12 +13,14 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
 from database import init_db, get_db, engine
-from models import User, Diary, NotebookEntry
+from models import User, Diary, NotebookEntry, EmailVerificationCode
 from schemas import (
     UserCreate, UserResponse, UserLogin,
     DiaryCreate, DiaryUpdate, DiaryResponse,
     Token, PhraseSearchRequest, PhraseSearchResponse,
-    NotebookEntryCreate, NotebookEntryUpdate, NotebookEntryResponse
+    NotebookEntryCreate, NotebookEntryUpdate, NotebookEntryResponse,
+    SendVerificationCodeRequest, VerifyCodeRequest, VerifyCodeResponse,
+    ResetPasswordRequest
 )
 from auth import (
     get_password_hash, verify_password, 
@@ -26,6 +28,9 @@ from auth import (
     get_current_user
 )
 from ai_service import ai_service
+from email_service import (
+    send_verification_email, create_verification_code, verify_code
+)
 from config import get_settings
 
 # 配置日志
@@ -164,6 +169,11 @@ async def login_page(request: Request):
 @app.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
     return render_template("register.html", request)
+
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+async def forgot_password_page(request: Request):
+    return render_template("forgot_password.html", request)
 
 
 @app.get("/write", response_class=HTMLResponse)
@@ -310,6 +320,46 @@ async def admin_stats(request: Request, db: Session = Depends(get_db)):
 
 
 # API Routes - Auth
+@app.post("/api/auth/send-verification-code")
+async def send_verification_code(req: SendVerificationCodeRequest, db: Session = Depends(get_db)):
+    """Send a verification code to the given email."""
+    if not settings.smtp_user or not settings.smtp_password:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SMTP not configured. Please set SMTP environment variables."
+        )
+    
+    # Check if email is already registered
+    existing = db.query(User).filter(User.email == req.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This email is already registered"
+        )
+    
+    code = create_verification_code(db, req.email)
+    success = await send_verification_email(req.email, code)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to send verification email. Please try again later."
+        )
+    
+    return {"message": "Verification code sent", "email": req.email}
+
+
+@app.post("/api/auth/verify-code", response_model=VerifyCodeResponse)
+async def verify_verification_code(req: VerifyCodeRequest, db: Session = Depends(get_db)):
+    """Verify the email verification code."""
+    is_valid = verify_code(db, req.email, req.code)
+    
+    if not is_valid:
+        return VerifyCodeResponse(verified=False, message="Invalid or expired verification code")
+    
+    return VerifyCodeResponse(verified=True, message="Verification successful")
+
+
 @app.post("/api/auth/register", response_model=UserResponse)
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     # Check if user exists
@@ -350,6 +400,24 @@ async def login(user: UserLogin, db: Session = Depends(get_db)):
         data={"sub": db_user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/api/auth/reset-password")
+async def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Reset password after email verification."""
+    # Find user by email
+    db_user = db.query(User).filter(User.email == req.email).first()
+    if not db_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found with this email"
+        )
+    
+    # Update password
+    db_user.hashed_password = get_password_hash(req.new_password)
+    db.commit()
+    
+    return {"message": "Password reset successfully"}
 
 
 @app.get("/api/auth/me", response_model=UserResponse)

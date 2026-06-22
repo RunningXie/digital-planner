@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
+    # SMTP Email Configuration
+    smtp_host: str = "smtp.126.com"
+    smtp_port: int = 465
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    
     # App
     app_host: str = "0.0.0.0"
     app_port: int = 8000
