@@ -16,6 +16,17 @@ PORT=8000
 PID_FILE=".diary.pid"
 LOG_FILE=".diary.log"
 
+# 激活虚拟环境（若存在）
+if [ -d "venv" ]; then
+    source venv/bin/activate
+    PY="python"
+elif [ -d ".venv" ]; then
+    source .venv/bin/activate
+    PY="python"
+else
+    PY="python3"
+fi
+
 # ============================================
 #  功能函数
 # ============================================
@@ -84,7 +95,7 @@ start_service() {
     
     # 检查依赖
     echo "  [1/3] 检查依赖..."
-    python3 -c "from fastapi import FastAPI" 2>/dev/null || {
+    $PY -c "from fastapi import FastAPI" 2>/dev/null || {
         echo "  [ERROR] 缺少依赖，请先运行: pip install -r requirements.txt"
         exit 1
     }
@@ -106,7 +117,7 @@ start_service() {
     echo "  [3/3] 启动服务..."
     
     # 后台运行并记录日志
-    nohup python3 main.py > $LOG_FILE 2>&1 &
+    nohup $PY main.py > $LOG_FILE 2>&1 &
     local PID=$!
     
     # 保存 PID

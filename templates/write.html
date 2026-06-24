@@ -527,51 +527,6 @@
             --warm-border: #cfd8dc;
         }
         
-        body.weather-night {
-            --warm-bg: #1a1a2e;
-            --warm-card: #252542;
-            --warm-primary: #7c6aef;
-            --warm-primary-dark: #5a4ad1;
-            --warm-secondary: #3a3a5c;
-            --warm-text: #e0e0f0;
-            --warm-text-light: #a0a0c0;
-            --warm-border: #4a4a6c;
-        }
-        
-        body.weather-sunset {
-            --warm-bg: #fff0e6;
-            --warm-card: #fff5ee;
-            --warm-primary: #ff8a65;
-            --warm-primary-dark: #e57254;
-            --warm-secondary: #ffd0bc;
-            --warm-text: #5c3a2d;
-            --warm-text-light: #a07060;
-            --warm-border: #f0c0a8;
-        }
-        
-        /* 夜间模式特殊样式 */
-        body.weather-night .navbar {
-            background: linear-gradient(135deg, #252542 0%, #3a3a5c 100%);
-        }
-        
-        body.weather-night .logo {
-            color: #c4b5fd;
-        }
-        
-        body.weather-night .nav-links a {
-            color: #d0d0e8;
-        }
-        
-        body.weather-night .nav-links a:hover {
-            background-color: #3a3a5c;
-            color: #c4b5fd;
-        }
-        
-        body.weather-night .editor-section,
-        body.weather-night .phrase-search-box {
-            border: 1px solid #4a4a6c;
-        }
-        
         /* 暴风雨模式特殊样式 */
         body.weather-stormy .navbar {
             background: linear-gradient(135deg, #3d484c 0%, #2d3436 100%);
@@ -593,6 +548,107 @@
         body.weather-stormy .editor-section,
         body.weather-stormy .phrase-search-box {
             border: 1px solid #4a5568;
+        }
+        
+        /* ========== 天气背景动画 ========== */
+        .weather-anim {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+        }
+        
+        /* 晴天：漂浮云朵 */
+        body.weather-sunny .weather-anim::before,
+        body.weather-sunny .weather-anim::after {
+            content: '☁️';
+            position: absolute;
+            font-size: 2.5rem;
+            opacity: 0.35;
+            animation: cloud-float 30s linear infinite;
+        }
+        body.weather-sunny .weather-anim::before { top: 15%; left: -10%; animation-delay: 0s; }
+        body.weather-sunny .weather-anim::after { top: 40%; left: -10%; animation-delay: -15s; font-size: 3rem; opacity: 0.25; }
+        @keyframes cloud-float {
+            from { transform: translateX(0); }
+            to { transform: translateX(120vw); }
+        }
+        
+        /* 多云 */
+        body.weather-cloudy .weather-anim::before,
+        body.weather-cloudy .weather-anim::after,
+        body.weather-cloudy .weather-anim .cloud-extra {
+            content: '☁️';
+            position: absolute;
+            font-size: 3rem;
+            opacity: 0.4;
+            animation: cloud-float 40s linear infinite;
+        }
+        body.weather-cloudy .weather-anim::before { top: 20%; left: -10%; animation-delay: 0s; }
+        body.weather-cloudy .weather-anim::after { top: 55%; left: -10%; animation-delay: -20s; }
+        body.weather-cloudy .weather-anim .cloud-extra { top: 75%; left: -10%; animation-delay: -10s; font-size: 2rem; opacity: 0.3; }
+        
+        /* 雨天 */
+        .rain-drop {
+            position: absolute;
+            top: -10%;
+            width: 2px;
+            height: 14px;
+            background: linear-gradient(to bottom, transparent, rgba(120, 170, 200, 0.6));
+            border-radius: 2px;
+            animation: rain-fall linear infinite;
+        }
+        @keyframes rain-fall {
+            from { transform: translateY(0); }
+            to { transform: translateY(120vh); }
+        }
+        
+        /* 雪天 */
+        .snow-flake {
+            position: absolute;
+            top: -5%;
+            color: #fff;
+            font-size: 1rem;
+            text-shadow: 0 0 2px rgba(180, 200, 220, 0.6);
+            animation: snow-fall linear infinite;
+        }
+        @keyframes snow-fall {
+            from { transform: translateY(0) translateX(0) rotate(0); opacity: 1; }
+            50% { transform: translateY(50vh) translateX(20px) rotate(180deg); opacity: 0.8; }
+            to { transform: translateY(110vh) translateX(-10px) rotate(360deg); opacity: 0.4; }
+        }
+        
+        /* 暴风雨：闪电 */
+        .lightning-flash {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0);
+            animation: lightning 6s ease-in-out infinite;
+            pointer-events: none;
+        }
+        @keyframes lightning {
+            0%, 92%, 96%, 100% { background: rgba(255, 255, 255, 0); }
+            93% { background: rgba(255, 255, 255, 0.55); }
+            94% { background: rgba(255, 255, 255, 0); }
+            95% { background: rgba(255, 255, 255, 0.4); }
+        }
+        body.weather-stormy .rain-drop { background: linear-gradient(to bottom, transparent, rgba(180, 200, 220, 0.7)); }
+        
+        /* 雾天 */
+        body.weather-foggy .weather-anim {
+            background:
+                radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.6) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 60%, rgba(255,255,255,0.5) 0%, transparent 50%),
+                radial-gradient(ellipse at 40% 80%, rgba(255,255,255,0.4) 0%, transparent 50%);
+            animation: fog-drift 25s ease-in-out infinite alternate;
+        }
+        @keyframes fog-drift {
+            from { transform: translateX(-5%) translateY(0); }
+            to { transform: translateX(5%) translateY(-2%); }
         }
         
         .weather-icon {
@@ -642,8 +698,6 @@
                         <option value="snowy">雪天</option>
                         <option value="stormy">暴风雨</option>
                         <option value="foggy">雾天</option>
-                        <option value="sunset">黄昏</option>
-                        <option value="night">夜晚</option>
                     </select>
                 </div>
             </div>
@@ -676,15 +730,19 @@
                         </div>
                     </div>
                 </div>
-                
+                <div class="word-count-bar" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0.25rem; color: var(--warm-text-light); font-size: 0.85rem;">
+                    <span>✨ <strong id="wcWords">0</strong> 词</span>
+                    <span>📝 <strong id="wcChars">0</strong> 字符</span>
+                    <span>💬 <strong id="wcSentences">0</strong> 句</span>
+                </div>                
                 <div style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start;">
                     <div style="flex: 0 0 150px;">
                         <label style="display: block; font-size: 0.85rem; color: var(--warm-text-light); margin-bottom: 0.3rem;">📅 日期</label>
                         <input type="date" id="diaryDate" class="form-input" style="width: 100%; padding: 0.5rem;">
                     </div>
                     <div style="flex: 1;">
-                        <label style="display: block; font-size: 0.85rem; color: var(--warm-text-light); margin-bottom: 0.3rem;">📝 标题（可选）</label>
-                        <input type="text" id="diaryTitle" class="title-input" placeholder="标题（可选）..." style="width: 100%; margin-bottom: 0;">
+                        <label style="display: block; font-size: 0.85rem; color: var(--warm-text-light); margin-bottom: 0.3rem;">📝 标题</label>
+                        <input type="text" id="diaryTitle" class="title-input" placeholder="给你的日记起个标题..." style="width: 100%; margin-bottom: 0;">
                     </div>
                 </div>
                 
@@ -752,37 +810,90 @@
             rainy: '🌧️',
             snowy: '❄️',
             stormy: '⛈️',
-            foggy: '🌫️',
-            sunset: '🌅',
-            night: '🌙'
+            foggy: '🌫️'
         };
-        
+
         // 切换天气主题
         function changeWeather(weather) {
             // 移除所有天气类
             document.body.className = '';
             document.body.classList.add(`weather-${weather}`);
-            
+
             // 更新图标
             const icon = document.getElementById('weatherIcon');
             if (icon) {
                 icon.textContent = weatherIcons[weather] || '☀️';
             }
-            
+
+            // 渲染天气背景动画
+            renderWeatherAnim(weather);
+
             // 保存选择到 localStorage
             localStorage.setItem('diary_weather', weather);
+        }
+
+        // 渲染天气背景动画
+        function renderWeatherAnim(weather) {
+            // 移除旧的动画层
+            const old = document.getElementById('weatherAnimLayer');
+            if (old) old.remove();
+
+            const layer = document.createElement('div');
+            layer.id = 'weatherAnimLayer';
+            layer.className = 'weather-anim';
+
+            if (weather === 'cloudy') {
+                const extra = document.createElement('div');
+                extra.className = 'cloud-extra';
+                layer.appendChild(extra);
+            } else if (weather === 'rainy' || weather === 'stormy') {
+                const count = weather === 'stormy' ? 90 : 60;
+                for (let i = 0; i < count; i++) {
+                    const drop = document.createElement('div');
+                    drop.className = 'rain-drop';
+                    drop.style.left = Math.random() * 100 + '%';
+                    drop.style.animationDuration = (0.4 + Math.random() * 0.6) + 's';
+                    drop.style.animationDelay = (-Math.random() * 2) + 's';
+                    drop.style.opacity = (0.4 + Math.random() * 0.5).toFixed(2);
+                    layer.appendChild(drop);
+                }
+                if (weather === 'stormy') {
+                    const flash = document.createElement('div');
+                    flash.className = 'lightning-flash';
+                    layer.appendChild(flash);
+                }
+            } else if (weather === 'snowy') {
+                const flakes = ['❄', '❅', '❆', '✻', '✼'];
+                for (let i = 0; i < 50; i++) {
+                    const flake = document.createElement('div');
+                    flake.className = 'snow-flake';
+                    flake.textContent = flakes[Math.floor(Math.random() * flakes.length)];
+                    flake.style.left = Math.random() * 100 + '%';
+                    flake.style.fontSize = (0.6 + Math.random() * 1.2).toFixed(2) + 'rem';
+                    flake.style.animationDuration = (6 + Math.random() * 8) + 's';
+                    flake.style.animationDelay = (-Math.random() * 10) + 's';
+                    flake.style.opacity = (0.5 + Math.random() * 0.5).toFixed(2);
+                    layer.appendChild(flake);
+                }
+            }
+
+            // 插入到 body 的最前面（保证在内容之下）
+            document.body.insertBefore(layer, document.body.firstChild);
         }
         
         // 页面加载时恢复天气选择
         function initWeather() {
-            const savedWeather = localStorage.getItem('diary_weather');
-            if (savedWeather) {
-                const select = document.getElementById('weatherSelect');
-                if (select) {
-                    select.value = savedWeather;
-                }
-                changeWeather(savedWeather);
+            const validWeathers = ['sunny', 'cloudy', 'rainy', 'snowy', 'stormy', 'foggy'];
+            let savedWeather = localStorage.getItem('diary_weather');
+            // 兼容旧的非天气选项
+            if (!validWeathers.includes(savedWeather)) {
+                savedWeather = 'sunny';
             }
+            const select = document.getElementById('weatherSelect');
+            if (select) {
+                select.value = savedWeather;
+            }
+            changeWeather(savedWeather);
         }
         
         // 初始化天气
@@ -986,20 +1097,23 @@
 
         // 监听输入，检测句号（仅在开关开启时触发）
         document.getElementById('diaryContent').addEventListener('input', function(e) {
+            // 实时更新词数统计
+            updateWordCount(e.target.value);
+
             if (!_realtimeEnabled) return; // 开关关闭时不触发
-            
+
             const content = e.target.value;
             const lastPeriodIndex = content.lastIndexOf('.');
             const lastExclaimIndex = content.lastIndexOf('!');
             const lastQuestionIndex = content.lastIndexOf('?');
-            
+
             // 找到最后一个句子结束符
             const lastEndIndex = Math.max(lastPeriodIndex, lastExclaimIndex, lastQuestionIndex);
-            
+
             if (lastEndIndex !== -1) {
                 // 提取最后一个完整句子
                 const sentence = content.substring(0, lastEndIndex + 1).trim();
-                
+
                 // 检查是否已经处理过这个句子
                 if (sentence && sentence !== _lastCorrectedSentence && sentence.length > 5) {
                     _lastCorrectedSentence = sentence;
@@ -1007,6 +1121,27 @@
                 }
             }
         });
+
+        // 实时统计词数 / 字符数 / 句数
+        function updateWordCount(text) {
+            const trimmed = (text || '').trim();
+            // 词数：以空白字符分割，过滤空字符串
+            const wordCount = trimmed ? trimmed.split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w)).length : 0;
+            // 字符数：去掉首尾空白
+            const charCount = trimmed.length;
+            // 句数：按 . ! ? 切分，过滤空段
+            const sentenceCount = trimmed ? trimmed.split(/[.!?]+/).filter(s => s.trim().length > 0).length : 0;
+
+            const wEl = document.getElementById('wcWords');
+            const cEl = document.getElementById('wcChars');
+            const sEl = document.getElementById('wcSentences');
+            if (wEl) wEl.textContent = wordCount;
+            if (cEl) cEl.textContent = charCount;
+            if (sEl) sEl.textContent = sentenceCount;
+        }
+
+        // 页面加载时初始化一次
+        updateWordCount(document.getElementById('diaryContent')?.value || '');
 
         function queueSentenceCorrection(sentence) {
             // 避免重复添加相同句子

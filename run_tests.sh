@@ -44,14 +44,23 @@ fi
 
 if [ "$NO_CONCURRENCY" = true ]; then
     echo "Running tests sequentially..."
-    python3 -m pytest tests/ -v --tb=short 2>/dev/null || \
-        python -m pytest tests/ -v --tb=short
+    # Prefer the local venv if available
+    if [ -f "venv/bin/python" ]; then
+        venv/bin/python -m pytest tests/ -v --tb=short
+    else
+        python3 -m pytest tests/ -v --tb=short 2>/dev/null || \
+            python -m pytest tests/ -v --tb=short
+    fi
 else
     echo "Running tests with $WORKERS concurrent workers..."
     echo "(Add --no-concurrency to run sequentially)"
     echo ""
-    python3 -m pytest tests/ -v --tb=short -n "$WORKERS" 2>/dev/null || \
-        python -m pytest tests/ -v --tb=short -n "$WORKERS"
+    if [ -f "venv/bin/python" ]; then
+        venv/bin/python -m pytest tests/ -v --tb=short -n "$WORKERS"
+    else
+        python3 -m pytest tests/ -v --tb=short -n "$WORKERS" 2>/dev/null || \
+            python -m pytest tests/ -v --tb=short -n "$WORKERS"
+    fi
 fi
 
 echo ""

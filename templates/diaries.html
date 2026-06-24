@@ -199,18 +199,19 @@
         
         .diary-card {
             background: var(--warm-card);
-            border-radius: 16px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: var(--shadow-soft);
-            border: 1px solid var(--warm-border);
+            border-radius: 24px;
+            padding: 1.75rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 4px 20px rgba(244, 182, 160, 0.12);
+            border: 1px solid #fde6dc;
             transition: all 0.3s ease;
             cursor: pointer;
         }
-        
+
         .diary-card:hover {
-            box-shadow: var(--shadow-medium);
-            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(244, 182, 160, 0.25);
+            transform: translateY(-3px);
+            border-color: #f4b6a0;
         }
         
         .diary-card-header {
@@ -259,7 +260,7 @@
             display: flex;
             gap: 0.5rem;
         }
-        
+
         .diary-card-actions button {
             background: none;
             border: none;
@@ -268,9 +269,36 @@
             border-radius: 4px;
             transition: background 0.2s;
         }
-        
+
         .diary-card-actions button:hover {
             background: var(--warm-secondary);
+        }
+
+        .action-btn {
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50% !important;
+            background: #fff5ec !important;
+            color: var(--warm-primary-dark) !important;
+            transition: all 0.25s ease !important;
+        }
+
+        .action-btn:hover {
+            background: #fde6dc !important;
+            color: #e89a82 !important;
+            transform: scale(1.1);
+        }
+
+        .action-btn.action-delete:hover {
+            background: #ffe0e0 !important;
+            color: #e89898 !important;
+        }
+
+        .action-btn svg {
+            display: block;
         }
         
         .modal {
@@ -280,7 +308,8 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(92, 74, 61, 0.35);
+            backdrop-filter: blur(4px);
             z-index: 1000;
             justify-content: center;
             align-items: center;
@@ -288,13 +317,14 @@
         
         .modal-content {
             background: var(--warm-card);
-            border-radius: 16px;
+            border-radius: 28px;
             padding: 2rem;
             max-width: 700px;
             width: 90%;
             max-height: 80vh;
             overflow-y: auto;
-            box-shadow: var(--shadow-medium);
+            box-shadow: 0 12px 40px rgba(244, 182, 160, 0.25);
+            border: 1px solid #fde6dc;
         }
         
         .modal-header {
@@ -311,26 +341,121 @@
         }
         
         .modal-close {
-            background: none;
+            background: #fff5ec;
             border: none;
             font-size: 1.5rem;
             cursor: pointer;
-            color: var(--warm-text-light);
+            color: var(--warm-primary-dark);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: #fde6dc;
+            color: #e89a82;
+            transform: rotate(90deg);
         }
         
         .modal-body {
             line-height: 1.8;
         }
-        
+
         .modal-corrections {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid var(--warm-border);
         }
-        
+
         .modal-corrections h3 {
             color: var(--warm-primary-dark);
             margin-bottom: 1rem;
+        }
+
+        /* ========== 编辑日记弹窗样式 ========== */
+        .edit-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .edit-form label {
+            color: var(--warm-primary-dark);
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .edit-form input[type="text"],
+        .edit-form input[type="date"],
+        .edit-form textarea {
+            width: 100%;
+            padding: 0.875rem 1.25rem;
+            border: 2px solid #f3d8c9;
+            border-radius: 20px;
+            background: #fffaf6;
+            color: var(--warm-text);
+            font-family: inherit;
+            font-weight: 500;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        .edit-form input[type="text"]:focus,
+        .edit-form input[type="date"]:focus,
+        .edit-form textarea:focus {
+            outline: none;
+            border-color: #f4b6a0;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(244, 182, 160, 0.15);
+        }
+
+        .edit-form textarea {
+            min-height: 220px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        .edit-form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .edit-form-actions .btn {
+            min-width: 100px;
+        }
+
+        .edit-form-hint {
+            color: var(--warm-text-light);
+            font-size: 0.85rem;
+            margin-top: -0.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .modal-content {
+                padding: 1.25rem;
+                width: 95%;
+            }
+
+            .edit-form textarea {
+                min-height: 180px;
+            }
+
+            .edit-form-actions {
+                flex-direction: column-reverse;
+            }
+
+            .edit-form-actions .btn {
+                width: 100%;
+            }
         }
         
         .empty-state {
@@ -504,10 +629,10 @@
 
     <div class="diaries-container">
         <div class="diaries-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <h1>📚 我的日记</h1>
+            <h1>🌷 我的日记</h1>
             <div style="display: flex; gap: 1rem; align-items: center;">
-                <a href="/write" class="btn btn-primary">✍️ 写日记</a>
-                <a href="/notebook" class="btn btn-secondary">📓 笔记本</a>
+                <a href="/write" class="btn btn-primary">💌 写日记</a>
+                <a href="/notebook" class="btn btn-secondary">🦋 笔记本</a>
             </div>
         </div>
         
@@ -529,9 +654,45 @@
                 <p id="modalDate" style="color: var(--warm-text-light); margin-bottom: 1rem;"></p>
                 <div id="modalContent"></div>
                 <div id="modalCorrections" class="modal-corrections" style="display: none;">
-                    <h3>📝 批改记录</h3>
+                    <h3>✨ 批改记录</h3>
                     <div id="modalCorrectionsList"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑日记弹窗 -->
+    <div id="editDiaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ 编辑日记</h2>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editDiaryForm" class="edit-form" onsubmit="event.preventDefault(); saveEditDiary();">
+                    <div>
+                        <label for="editDiaryTitle">🌸 标题</label>
+                        <input type="text" id="editDiaryTitle" maxlength="120" placeholder="给你的日记起个标题...">
+                    </div>
+                    <div>
+                        <label for="editDiaryDate">🌷 日记日期</label>
+                        <input type="date" id="editDiaryDate">
+                    </div>
+                    <div>
+                        <label for="editDiaryContent">💌 内容</label>
+                        <textarea id="editDiaryContent" required placeholder="写下今天的英文日记..."></textarea>
+                        <div class="word-count-bar" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0.25rem; color: var(--warm-text-light); font-size: 0.85rem;">
+                            <span>✨ <strong id="editWcWords">0</strong> 词</span>
+                            <span>📝 <strong id="editWcChars">0</strong> 字符</span>
+                            <span>💬 <strong id="editWcSentences">0</strong> 句</span>
+                        </div>
+                        <p class="edit-form-hint">🌟 提示：保存修改后，AI 批改会重新生成最新的批改结果。</p>
+                    </div>
+                    <div class="edit-form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">🍃 取消</button>
+                        <button type="submit" class="btn btn-primary" id="saveEditBtn">🌸 保存修改</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -626,12 +787,12 @@
                 
                 if (diaries.length === 0) {
                     listDiv.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">📝</div>
-                            <h3>还没有日记</h3>
-                            <p>开始写下你的第一篇英文日记吧！</p>
-                        </div>
-                    `;
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🌸</div>
+                        <h3>还没有日记</h3>
+                        <p>开始写下你的第一篇英文日记吧！</p>
+                    </div>
+                `;
                     return;
                 }
                 
@@ -647,11 +808,16 @@
                         <div class="diary-card-preview">${escapeHtml(diary.content)}</div>
                         <div class="diary-card-footer">
                             <div class="diary-card-stats">
-                                <span>📊 ${diary.corrections ? diary.corrections.length : 0} 处修改</span>
-                                <span>📄 ${diary.content.length} 字</span>
+                                <span>🦋 ${diary.corrections ? diary.corrections.length : 0} 处修改</span>
+                                <span>✨ ${diary.content.length} 字</span>
                             </div>
                             <div class="diary-card-actions" onclick="event.stopPropagation()">
-                                <button onclick="deleteDiaryEntry(${diary.id})" title="删除">🗑️</button>
+                                <button onclick="openEditDiary(${diary.id})" title="编辑" class="action-btn action-edit">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                </button>
+                                <button onclick="deleteDiaryEntry(${diary.id})" title="删除" class="action-btn action-delete">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -709,6 +875,106 @@
                 showMessage('删除失败', 'error');
             }
         }
+
+        // ========== 编辑日记功能 ==========
+        let editingDiaryId = null;
+
+        function toDateInputValue(value) {
+            if (!value) return '';
+            try {
+                const d = new Date(value);
+                if (isNaN(d.getTime())) return '';
+                const tz = d.getTimezoneOffset() * 60000;
+                return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+            } catch (e) {
+                return '';
+            }
+        }
+
+        async function openEditDiary(id) {
+            try {
+                const diary = await getDiary(id);
+                editingDiaryId = id;
+
+                document.getElementById('editDiaryTitle').value = diary.title || '';
+                document.getElementById('editDiaryDate').value = toDateInputValue(diary.diary_date || diary.created_at);
+                const content = diary.content || '';
+                document.getElementById('editDiaryContent').value = content;
+                updateEditWordCount(content);
+
+                const saveBtn = document.getElementById('saveEditBtn');
+                saveBtn.disabled = false;
+                saveBtn.textContent = '🌸 保存修改';
+
+                document.getElementById('editDiaryModal').style.display = 'flex';
+
+                setTimeout(() => {
+                    document.getElementById('editDiaryContent').focus();
+                }, 50);
+            } catch (error) {
+                showMessage('加载日记失败，无法编辑', 'error');
+            }
+        }
+
+        function updateEditWordCount(text) {
+            const trimmed = (text || '').trim();
+            const wordCount = trimmed ? trimmed.split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w)).length : 0;
+            const charCount = trimmed.length;
+            const sentenceCount = trimmed ? trimmed.split(/[.!?]+/).filter(s => s.trim().length > 0).length : 0;
+            const wEl = document.getElementById('editWcWords');
+            const cEl = document.getElementById('editWcChars');
+            const sEl = document.getElementById('editWcSentences');
+            if (wEl) wEl.textContent = wordCount;
+            if (cEl) cEl.textContent = charCount;
+            if (sEl) sEl.textContent = sentenceCount;
+        }
+
+        // 监听编辑弹窗内容变化
+        document.getElementById('editDiaryContent').addEventListener('input', function(e) {
+            updateEditWordCount(e.target.value);
+        });
+
+        function closeEditModal() {
+            document.getElementById('editDiaryModal').style.display = 'none';
+            editingDiaryId = null;
+        }
+
+        async function saveEditDiary() {
+            if (!editingDiaryId) {
+                showMessage('没有可保存的日记', 'error');
+                return;
+            }
+
+            const title = document.getElementById('editDiaryTitle').value.trim();
+            const dateValue = document.getElementById('editDiaryDate').value;
+            const content = document.getElementById('editDiaryContent').value.trim();
+
+            if (!content) {
+                showMessage('日记内容不能为空', 'error');
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveEditBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = '⏳ 正在保存...';
+            try {
+                const body = { title, content };
+                if (dateValue) {
+                    body.diary_date = dateValue + 'T00:00:00';
+                }
+                await apiRequest(`/diaries/${editingDiaryId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(body)
+                });
+                showMessage('日记修改成功，AI 批改已更新', 'success');
+                closeEditModal();
+                loadDiaries();
+            } catch (error) {
+                showMessage('保存失败：' + (error.message || '请重试'), 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = '🌸 保存修改';
+            }
+        }
         
         // 转义HTML
         function escapeHtml(text) {
@@ -721,6 +987,23 @@
         document.getElementById('diaryModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeModal();
+            }
+        });
+
+        // 点击编辑弹窗外部关闭
+        document.getElementById('editDiaryModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+
+        // 按 Esc 关闭编辑弹窗
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const editModal = document.getElementById('editDiaryModal');
+                if (editModal && editModal.style.display === 'flex') {
+                    closeEditModal();
+                }
             }
         });
         

@@ -2,6 +2,13 @@
 Pytest fixtures for the diary-app integration tests.
 Provides: FastAPI TestClient, mock DB session, mock AI service, and test user.
 """
+import os
+
+# 必须在所有项目导入前设置，避免 main.py / database.py 加载真实配置
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("AI_API_KEY", "test-ai-key")
+
 import pytest
 import pytest_asyncio
 from datetime import datetime
@@ -99,7 +106,7 @@ def client(db_session: Session):
 @pytest.fixture
 def mock_ai_service():
     """Mock the AI service to return a controlled response."""
-    async def mock_stream():
+    async def mock_stream(content=None):
         yield {
             "original": "This is a test sentence.",
             "corrected": "This is a test sentence.",

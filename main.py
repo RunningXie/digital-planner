@@ -715,18 +715,26 @@ async def update_diary(
     ).first()
     if not db_diary:
         raise HTTPException(status_code=404, detail="Diary not found")
-    
+
+    # Track whether content changed (to decide whether to re-run AI)
+    content_changed = (
+        diary_update.content is not None
+        and diary_update.content != db_diary.content
+    )
+
     # Update fields
-    if diary_update.title:
+    if diary_update.title is not None:
         db_diary.title = diary_update.title
-    if diary_update.content:
+    if diary_update.diary_date is not None:
+        db_diary.diary_date = diary_update.diary_date
+    if content_changed:
         db_diary.content = diary_update.content
         # Re-run AI corrections
         corrections_result = await ai_service.correct_diary(diary_update.content)
         db_diary.corrections = corrections_result.get("corrections", [])
         db_diary.optimized_content = corrections_result.get("optimized_content", diary_update.content)
         db_diary.ai_error = corrections_result.get("error")
-    
+
     db.commit()
     db.refresh(db_diary)
     

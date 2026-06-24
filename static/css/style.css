@@ -1,18 +1,20 @@
 /* Warm and cozy diary theme */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Comfortaa:wght@400;500;600;700&family=ZCOOL+KuaiLe&display=swap');
+
 :root {
     --warm-bg: #faf7f2;
     --warm-card: #ffffff;
-    --warm-primary: #d4a574;
-    --warm-primary-dark: #b8935f;
-    --warm-secondary: #e8d5c4;
+    --warm-primary: #f4b6a0;
+    --warm-primary-dark: #e89a82;
+    --warm-secondary: #fde6dc;
     --warm-text: #5c4a3d;
-    --warm-text-light: #8b7355;
-    --warm-border: #e0d5c8;
-    --warm-accent: #c9a96e;
-    --warm-success: #7a9e7e;
-    --warm-error: #c97b7b;
-    --shadow-soft: 0 4px 20px rgba(92, 74, 61, 0.08);
-    --shadow-medium: 0 8px 30px rgba(92, 74, 61, 0.12);
+    --warm-text-light: #9c8472;
+    --warm-border: #f3d8c9;
+    --warm-accent: #ffb5c5;
+    --warm-success: #8bc49a;
+    --warm-error: #e89898;
+    --shadow-soft: 0 4px 20px rgba(244, 182, 160, 0.15);
+    --shadow-medium: 0 8px 30px rgba(244, 182, 160, 0.2);
 }
 
 * {
@@ -22,33 +24,42 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    /* 圆润可爱的字体组合：优先使用 Quicksand（英文圆润字体），中文回退到苹方等 */
+    font-family: 'Quicksand', 'M PLUS Rounded 1c', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    font-weight: 500;
     background-color: var(--warm-bg);
+    background-image:
+        radial-gradient(circle at 10% 10%, rgba(255, 181, 197, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(244, 182, 160, 0.08) 0%, transparent 50%);
     color: var(--warm-text);
-    line-height: 1.6;
+    line-height: 1.7;
     min-height: 100vh;
+    letter-spacing: 0.01em;
 }
 
-/* English text uses a more elegant serif font */
+/* English text uses a soft, rounded font */
 .diary-textarea, .diary-card-preview, .correction-original, .correction-corrected, .optimized-content p {
-    font-family: 'Georgia', 'Times New Roman', 'Songti SC', 'SimSun', serif;
-    line-height: 1.8;
+    font-family: 'Quicksand', 'Comfortaa', 'Georgia', 'Songti SC', serif;
+    line-height: 1.9;
+    font-weight: 500;
 }
 
-/* Chinese headings use a warmer font */
+/* Chinese headings use a warmer, rounder font */
 h1, h2, h3, .logo, .card-title, .diary-card-title {
-    font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'STHeiti', sans-serif;
-    font-weight: 600;
+    font-family: 'M PLUS Rounded 1c', 'ZCOOL KuaiLe', 'Quicksand', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 /* Navigation */
 .navbar {
-    background: linear-gradient(135deg, var(--warm-card) 0%, var(--warm-secondary) 100%);
+    background: linear-gradient(135deg, #fff5ec 0%, #ffe4d6 100%);
     padding: 1rem 2rem;
-    box-shadow: var(--shadow-soft);
+    box-shadow: 0 4px 20px rgba(244, 182, 160, 0.15);
     position: sticky;
     top: 0;
     z-index: 100;
+    border-bottom: 2px solid #fde6dc;
 }
 
 .navbar-content {
@@ -60,14 +71,15 @@ h1, h2, h3, .logo, .card-title, .diary-card-title {
 }
 
 .logo {
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: var(--warm-primary-dark);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #e89a82;
     text-decoration: none;
+    letter-spacing: 0.05em;
 }
 
 .logo::before {
-    content: "📖 ";
+    content: "🌷 ";
 }
 
 .nav-links {
@@ -79,14 +91,17 @@ h1, h2, h3, .logo, .card-title, .diary-card-title {
 .nav-links a {
     color: var(--warm-text);
     text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
     transition: all 0.3s ease;
+    font-weight: 600;
 }
 
 .nav-links a:hover {
-    background-color: var(--warm-secondary);
-    color: var(--warm-primary-dark);
+    background-color: #fff;
+    color: #e89a82;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(244, 182, 160, 0.2);
 }
 
 /* Container */
@@ -99,11 +114,11 @@ h1, h2, h3, .logo, .card-title, .diary-card-title {
 /* Cards */
 .card {
     background: var(--warm-card);
-    border-radius: 16px;
+    border-radius: 24px;
     padding: 2rem;
-    box-shadow: var(--shadow-soft);
+    box-shadow: 0 4px 20px rgba(244, 182, 160, 0.12);
     margin-bottom: 1.5rem;
-    border: 1px solid var(--warm-border);
+    border: 1px solid #fde6dc;
 }
 
 .card-title {
@@ -127,25 +142,27 @@ h1, h2, h3, .logo, .card-title, .diary-card-title {
 
 .form-input {
     width: 100%;
-    padding: 0.875rem 1rem;
-    border: 2px solid var(--warm-border);
-    border-radius: 12px;
+    padding: 0.875rem 1.25rem;
+    border: 2px solid #f3d8c9;
+    border-radius: 20px;
     font-size: 1rem;
     font-family: inherit;
-    background: var(--warm-bg);
+    font-weight: 500;
+    background: #fffaf6;
     color: var(--warm-text);
     transition: all 0.3s ease;
 }
 
 .form-input:focus {
     outline: none;
-    border-color: var(--warm-primary);
-    box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
+    border-color: #f4b6a0;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(244, 182, 160, 0.15);
 }
 
 .form-input::placeholder {
     color: var(--warm-text-light);
-    opacity: 0.6;
+    opacity: 0.7;
 }
 
 textarea.form-input {
@@ -159,33 +176,37 @@ textarea.form-input {
     display: inline-block;
     padding: 0.875rem 2rem;
     border: none;
-    border-radius: 12px;
+    border-radius: 999px;
     font-size: 1rem;
     font-family: inherit;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
     text-decoration: none;
     text-align: center;
+    letter-spacing: 0.03em;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--warm-primary) 0%, var(--warm-primary-dark) 100%);
-    color: white;
-    box-shadow: 0 4px 15px rgba(212, 165, 116, 0.3);
+    background: linear-gradient(135deg, #ffc1a8 0%, #f4b6a0 50%, #ffb5c5 100%);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(244, 182, 160, 0.4);
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(212, 165, 116, 0.4);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(244, 182, 160, 0.5);
 }
 
 .btn-secondary {
-    background: var(--warm-secondary);
+    background: #fff;
     color: var(--warm-text);
+    border: 2px solid #fde6dc;
 }
 
 .btn-secondary:hover {
-    background: var(--warm-border);
+    background: #fde6dc;
+    transform: translateY(-1px);
 }
 
 .btn-full {
@@ -237,30 +258,32 @@ textarea.form-input {
 
 /* Corrections Panel */
 .corrections-panel {
-    background: linear-gradient(135deg, #f8f4ef 0%, #f0ebe3 100%);
-    border-radius: 12px;
+    background: linear-gradient(135deg, #fff8f3 0%, #ffeedf 100%);
+    border-radius: 20px;
     padding: 1.5rem;
     margin-top: 1.5rem;
-    border: 1px solid var(--warm-border);
+    border: 1px solid #fde6dc;
 }
 
 .correction-item {
     background: var(--warm-card);
-    border-radius: 8px;
-    padding: 1rem;
+    border-radius: 16px;
+    padding: 1.25rem;
     margin-bottom: 1rem;
-    border-left: 4px solid var(--warm-primary);
+    border-left: 4px solid #f4b6a0;
+    box-shadow: 0 2px 8px rgba(244, 182, 160, 0.1);
 }
 
 .correction-original {
     color: var(--warm-error);
     text-decoration: line-through;
     margin-bottom: 0.5rem;
+    font-weight: 500;
 }
 
 .correction-corrected {
     color: var(--warm-success);
-    font-weight: bold;
+    font-weight: 700;
     margin-bottom: 0.5rem;
 }
 
@@ -277,11 +300,12 @@ textarea.form-input {
 }
 
 .suggestion-tag {
-    background: var(--warm-secondary);
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
+    background: linear-gradient(135deg, #ffe4d6 0%, #ffd6e0 100%);
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
     font-size: 0.85rem;
     color: var(--warm-text);
+    font-weight: 600;
 }
 
 /* Phrase Search */
@@ -372,11 +396,11 @@ textarea.form-input {
 
 .auth-card {
     background: var(--warm-card);
-    border-radius: 20px;
+    border-radius: 28px;
     padding: 3rem;
-    box-shadow: var(--shadow-medium);
+    box-shadow: 0 12px 40px rgba(244, 182, 160, 0.2);
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
 }
 
 .auth-header {

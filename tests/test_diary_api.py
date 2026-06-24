@@ -208,6 +208,59 @@ class TestUpdateDiary:
         # AI should NOT be called when only title changes
         mock_ai_service.correct_diary.assert_not_called()
 
+    def test_update_diary_date(self, client, mock_ai_service, auth_headers):
+        """Editing the diary_date alone should update the date without re-running AI."""
+        create_resp = client.post(
+            "/api/diaries", json={"content": "Some content."}, headers=auth_headers
+        )
+        diary_id = create_resp.json()["id"]
+        mock_ai_service.correct_diary.reset_mock()
+
+        response = client.put(
+            f"/api/diaries/{diary_id}",
+            json={"diary_date": "2025-12-25T00:00:00"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert "2025-12-25" in response.json()["diary_date"]
+        mock_ai_service.correct_diary.assert_not_called()
+
+    def test_update_title_to_empty_string(self, client, mock_ai_service, auth_headers):
+        """An explicit empty title should clear the title (not be ignored)."""
+        create_resp = client.post(
+            "/api/diaries", json={"title": "Original", "content": "Some content."}, headers=auth_headers
+        )
+        diary_id = create_resp.json()["id"]
+
+        response = client.put(
+            f"/api/diaries/{diary_id}",
+            json={"title": "", "content": "Some content."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["title"] == ""
+
+    def test_update_only_date_and_title_does_not_trigger_ai(self, client, mock_ai_service, auth_headers):
+        """Editing date and title only should not trigger AI re-correction."""
+        create_resp = client.post(
+            "/api/diaries", json={"content": "Stable content."}, headers=auth_headers
+        )
+        diary_id = create_resp.json()["id"]
+        mock_ai_service.correct_diary.reset_mock()
+
+        response = client.put(
+            f"/api/diaries/{diary_id}",
+            json={
+                "title": "New Title",
+                "diary_date": "2025-08-15T00:00:00",
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["title"] == "New Title"
+        assert "2025-08-15" in response.json()["diary_date"]
+        mock_ai_service.correct_diary.assert_not_called()
+
 
 class TestDeleteDiary:
     """Test DELETE /api/diaries/{id}."""
@@ -397,7 +450,7 @@ class TestDiaryStreamErrorHandling:
         was already displayed and append the error rather than overwriting results.
         """
         # Simulate a stream that yields one correction then raises an error
-        async def mock_partial_stream():
+        async def mock_partial_stream(content=None):
             yield {
                 "original": "I go to school.",
                 "corrected": "I went to school.",

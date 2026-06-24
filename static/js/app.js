@@ -101,21 +101,32 @@ function hideLoading(elementId) {
 function showMessage(message, type = 'success') {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message message-${type}`;
-    messageDiv.textContent = message;
-    messageDiv.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;padding:1rem 1.5rem;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
-    
+    messageDiv.textContent = (type === 'success' ? '🌸 ' : '🥺 ') + message;
+    messageDiv.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;padding:1rem 1.5rem;border-radius:999px;box-shadow:0 8px 24px rgba(244, 182, 160, 0.3);font-weight:600;font-family:inherit;';
+
     if (type === 'success') {
-        messageDiv.style.background = '#7a9e7e';
+        messageDiv.style.background = 'linear-gradient(135deg, #ffd6e0 0%, #ffc1a8 100%)';
         messageDiv.style.color = '#fff';
     } else {
-        messageDiv.style.background = '#c97b7b';
+        messageDiv.style.background = 'linear-gradient(135deg, #ffc8c8 0%, #ffb0b0 100%)';
         messageDiv.style.color = '#fff';
     }
-    
+
     document.body.appendChild(messageDiv);
-    
+
+    // 渐入动画
+    messageDiv.style.opacity = '0';
+    messageDiv.style.transform = 'translateY(-10px)';
+    messageDiv.style.transition = 'all 0.3s ease';
+    requestAnimationFrame(() => {
+        messageDiv.style.opacity = '1';
+        messageDiv.style.transform = 'translateY(0)';
+    });
+
     setTimeout(() => {
-        messageDiv.remove();
+        messageDiv.style.opacity = '0';
+        messageDiv.style.transform = 'translateY(-10px)';
+        setTimeout(() => messageDiv.remove(), 300);
     }, 3000);
 }
 
