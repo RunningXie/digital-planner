@@ -25,11 +25,11 @@ if [ ! -f "$PIP" ]; then
     PIP="pip3"
 fi
 
-# Install test dependencies if needed
+# Install test dependencies if needed (从 requirements-dev.txt 读单一来源)
 echo ""
 echo "[1/2] Checking dependencies..."
-$PIP install --user --break-system-packages pytest pytest-asyncio httpx pytest-xdist -q 2>/dev/null || \
-    $PIP install pytest pytest-asyncio httpx pytest-xdist -q 2>/dev/null || \
+$PIP install --user --break-system-packages -r requirements-dev.txt -q 2>/dev/null || \
+    $PIP install -r requirements-dev.txt -q 2>/dev/null || \
     echo "[WARN] Could not install test dependencies, continuing anyway..."
 
 # Run all tests with concurrency (pytest-xdist)
