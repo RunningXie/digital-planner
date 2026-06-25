@@ -451,21 +451,34 @@ async def create_diary_stream(
     
     async def stream_corrections():
         nonlocal all_corrections, optimized_content
-        
-        async for item in ai_service.correct_diary_stream(diary.content):
-            if item.get("type") == "optimized":
-                optimized_content = item.get("optimized_content", "")
-                yield f"data: {json.dumps(item)}\n\n"
-            else:
-                all_corrections.append(item)
-                yield f"data: {json.dumps(item)}\n\n"
-        
-        db_diary.corrections = all_corrections
-        db_diary.optimized_content = optimized_content
-        db.commit()
-        db.refresh(db_diary)
-        
-        yield f"data: {json.dumps({'type': 'done', 'diary_id': db_diary.id})}\n\n"
+        stream_failed = False
+        try:
+            async for item in ai_service.correct_diary_stream(diary.content):
+                if item.get("type") == "optimized":
+                    optimized_content = item.get("optimized_content", "")
+                    yield f"data: {json.dumps(item)}\n\n"
+                else:
+                    all_corrections.append(item)
+                    yield f"data: {json.dumps(item)}\n\n"
+        except Exception as e:
+            # 流式接口中途异常时，把已收到的内容落库，避免前端"已展示的优化版本被错误覆盖"
+            stream_failed = True
+            logger.error(f"流式批改中途失败: {e}", exc_info=True)
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+
+        # 无论成功还是异常退出，都把已经收集到的部分结果写回 DB
+        try:
+            db_diary.corrections = all_corrections
+            db_diary.optimized_content = optimized_content
+            db.commit()
+            db.refresh(db_diary)
+        except Exception as e:
+            logger.error(f"保存部分批改结果失败: {e}", exc_info=True)
+
+        done_event = {"type": "done", "diary_id": db_diary.id}
+        if stream_failed:
+            done_event["partial"] = True
+        yield f"data: {json.dumps(done_event)}\n\n"
     
     return StreamingResponse(stream_corrections(), media_type="text/event-stream")
 

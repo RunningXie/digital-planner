@@ -434,22 +434,9 @@ class TestDiaryStream:
         # Skipped: auth override limitation in test setup
         pass
 
-
-class TestDiaryStreamErrorHandling:
-    """Test stream endpoint error handling — ensures partial results are preserved.
-    
-    Regression test for the bug where stream errors would overwrite already-received
-    optimized content, showing "批改出错" while "优化后的版本" was already displayed.
-    """
-
-    def test_stream_diary_partial_failure_preserves_optimized(self, client, auth_headers):
-        """When stream fails midway, already-received optimized content should not be lost.
-        
-        This tests the scenario where aiohttp is not imported or AI API fails,
-        causing the stream to break. The frontend should detect that optimized_content
-        was already displayed and append the error rather than overwriting results.
-        """
-        # Simulate a stream that yields one correction then raises an error
+    def test_stream_diary_partial_failure_preserves_optimized(self, client, auth_headers, db_session):
+        """流式批改中途异常时，已收到的内容必须保留，不能让前端看到 "批改出错" 把已展示的优化版本盖掉。"""
+        # 模拟一个 yield 一次结果就抛异常的流
         async def mock_partial_stream(content=None):
             yield {
                 "original": "I go to school.",
@@ -457,7 +444,7 @@ class TestDiaryStreamErrorHandling:
                 "explanation": "Verb tense error.",
                 "suggestions": ["I went to school."],
             }
-            # Simulate failure mid-stream
+            yield {"type": "optimized", "optimized_content": "I went to school. I am happy."}
             raise Exception("aiohttp is not defined")
 
         with patch("main.ai_service") as mock_ai:
@@ -468,14 +455,26 @@ class TestDiaryStreamErrorHandling:
                 "error": "aiohttp is not defined",
             })
 
-            # The stream endpoint itself should still return 200 (it catches errors internally)
-            # But the stream may terminate early
             response = client.post(
                 "/api/diaries/stream",
                 json={"title": "Partial", "content": "I go to school. I am happy."},
                 headers=auth_headers,
             )
+            # 即便中途异常，HTTP 状态仍是 200（SSE 已写出部分内容）
             assert response.status_code == 200
-            # Should have received at least the correction event before failure
-            content = response.text
-            assert "I went to school" in content or "data:" in content
+
+            # 已 yield 的两条内容必须出现在响应里
+            assert "I went to school" in response.text
+            # 异常事件必须被发出，前端据此兜底
+            assert "\"type\": \"error\"" in response.text or '"type":"error"' in response.text
+            # 最后必须有 done 事件，且标记为 partial
+            assert "\"partial\": true" in response.text or '"partial":true' in response.text
+
+            # 关键断言：DB 里必须保存了已收到的 optimized_content，不能因为异常而丢失
+            from models import Diary
+            diaries = db_session.query(Diary).all()
+            assert len(diaries) == 1
+            assert diaries[0].optimized_content == "I went to school. I am happy."
+            assert len(diaries[0].corrections) == 1
+            assert diaries[0].corrections[0]["corrected"] == "I went to school."
+
