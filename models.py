@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Boolean
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Boolean, Date
 from sqlalchemy.orm import relationship
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from database import Base
 
 
@@ -12,6 +12,11 @@ class User(Base):
     email = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Token quota for AI usage
+    daily_token_used = Column(Integer, default=0)
+    daily_token_date = Column(Date, nullable=True)
+    daily_token_limit = Column(Integer, default=20000)  # 20k tokens per day
     
     # Relationship
     diaries = relationship("Diary", back_populates="user", cascade="all, delete-orphan")
@@ -32,6 +37,9 @@ class Diary(Base):
     corrections = Column(JSON, default=list)  # Store sentence-by-sentence corrections
     optimized_content = Column(Text, default="")  # Full optimized text
     ai_error = Column(Text, nullable=True, default=None)  # AI error message if correction failed
+
+    # Weather recorded when the diary was written
+    weather = Column(String(16), nullable=True, default=None)
     
     # Relationship
     user = relationship("User", back_populates="diaries")

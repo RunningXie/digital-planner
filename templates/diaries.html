@@ -1,1014 +1,564 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的日记 - Dear Diary</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        /* ========== 翻开日记本动画 ========== */
-        .diary-opening-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #f5e6d3 0%, #e8d5b7 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            opacity: 1;
-            transition: opacity 0.5s ease;
-        }
+{% extends "base.html" %}
 
-        .diary-opening-overlay.fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
+{% block title %}我的日记 — Dear Diary{% endblock %}
 
-        .diary-book {
-            width: 300px;
-            height: 400px;
-            position: relative;
-            perspective: 1500px;
-            transform-style: preserve-3d;
-        }
+{% block extra_css %}
+<style>
+    .diaries-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
 
-        .diary-cover {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #8b6914 0%, #d4a574 50%, #8b6914 100%);
-            border-radius: 0 15px 15px 0;
-            box-shadow:
-                0 0 20px rgba(0, 0, 0, 0.3),
-                inset 0 0 30px rgba(255, 255, 255, 0.1);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            transform-origin: left center;
-            animation: openCover 1.5s ease-in-out forwards;
-            animation-delay: 0.8s;
-            z-index: 2;
-        }
+    .diaries-page-header h1 {
+        font-size: 1.375rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
 
-        .diary-cover::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 20px;
-            height: 100%;
-            background: linear-gradient(90deg, #6b5a1e 0%, #8b6914 100%);
-            border-radius: 3px 0 0 3px;
-        }
+    .diaries-page-header h1 svg {
+        width: 22px;
+        height: 22px;
+        color: var(--accent);
+    }
 
-        .diary-cover-title {
-            color: #fffef7;
-            font-size: 1.8rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-            margin-bottom: 1rem;
-            font-family: 'Georgia', serif;
-        }
+    .diaries-page-header .header-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
 
-        .diary-cover-subtitle {
-            color: #fffef7;
-            font-size: 1rem;
-            opacity: 0.9;
-        }
+    /* 日记列表（与 style.css 中 diary-card 一致） */
+    .diary-card-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
 
-        .diary-cover-decoration {
-            position: absolute;
-            bottom: 30px;
-            width: 60%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, #fffef7, transparent);
-            opacity: 0.5;
-        }
+    .diary-card-date {
+        font-size: 0.8125rem;
+        color: var(--text-3);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.4375rem;
+        white-space: nowrap;
+    }
 
-        .diary-pages {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #fffef7 0%, #f5f0e1 100%);
-            border-radius: 0 15px 15px 0;
-            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1;
-        }
+    .diary-card-weather {
+        font-size: 0.875rem;
+        color: var(--text-2);
+        background: var(--surface-2);
+        padding: 0.1875rem 0.5rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+    }
 
-        .diary-pages::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 20px;
-            height: 100%;
-            background: linear-gradient(90deg, #e8e4d9 0%, #f5f0e1 100%);
-            border-radius: 3px 0 0 3px;
-        }
+    .diary-card-footer-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8125rem;
+        color: var(--text-3);
+    }
 
-        .diary-lines {
-            width: 80%;
-            height: 60%;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            padding: 20px;
-        }
+    .diary-card-stats {
+        display: flex;
+        gap: 0.875rem;
+        align-items: center;
+    }
 
-        .diary-line {
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #d4a574, transparent);
-            opacity: 0.3;
-            animation: fadeInLine 0.3s ease forwards;
-            opacity: 0;
-        }
+    .diary-card-stats > span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3125rem;
+    }
 
-        .diary-line:nth-child(1) { animation-delay: 1.8s; }
-        .diary-line:nth-child(2) { animation-delay: 1.9s; }
-        .diary-line:nth-child(3) { animation-delay: 2.0s; }
-        .diary-line:nth-child(4) { animation-delay: 2.1s; }
-        .diary-line:nth-child(5) { animation-delay: 2.2s; }
-        .diary-line:nth-child(6) { animation-delay: 2.3s; }
-        .diary-line:nth-child(7) { animation-delay: 2.4s; }
-        .diary-line:nth-child(8) { animation-delay: 2.5s; }
+    .diary-card-stats svg {
+        width: 14px;
+        height: 14px;
+        color: var(--text-3);
+    }
 
-        @keyframes openCover {
-            0% {
-                transform: rotateY(0deg);
-            }
-            100% {
-                transform: rotateY(-160deg);
-                z-index: 1;
-            }
-        }
+    .diary-card-actions {
+        display: flex;
+        gap: 0.25rem;
+    }
 
-        @keyframes fadeInLine {
-            0% {
-                opacity: 0;
-                transform: scaleX(0);
-            }
-            100% {
-                opacity: 0.3;
-                transform: scaleX(1);
-            }
-        }
+    .diary-card-actions button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: transparent;
+        color: var(--text-2);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
 
-        .diary-opening-overlay.hide-animation {
-            display: none;
-        }
+    .diary-card-actions button:hover {
+        background: var(--surface-2);
+        color: var(--text);
+    }
 
-        @media (max-width: 768px) {
-            .diary-book {
-                width: 240px;
-                height: 320px;
-            }
+    .diary-card-actions button.action-delete:hover {
+        background: var(--error-soft);
+        color: var(--error);
+    }
 
-            .diary-cover-title {
-                font-size: 1.4rem;
-            }
+    .diary-card-actions button svg {
+        width: 16px;
+        height: 16px;
+    }
 
-            .diary-cover-subtitle {
-                font-size: 0.9rem;
-            }
-        }
+    /* 弹窗：日记详情 */
+    .modal-content .modal-corrections {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+    }
 
-        .diaries-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-        
-        .diaries-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-        
-        .diaries-header h1 {
-            color: var(--warm-primary-dark);
-        }
-        
-        .diary-card {
-            background: var(--warm-card);
-            border-radius: 24px;
-            padding: 1.75rem;
-            margin-bottom: 1.25rem;
-            box-shadow: 0 4px 20px rgba(244, 182, 160, 0.12);
-            border: 1px solid #fde6dc;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
+    .modal-content .modal-corrections h3 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.875rem;
+    }
 
-        .diary-card:hover {
-            box-shadow: 0 8px 30px rgba(244, 182, 160, 0.25);
-            transform: translateY(-3px);
-            border-color: #f4b6a0;
-        }
-        
-        .diary-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 0.75rem;
-        }
-        
-        .diary-card-title {
-            font-size: 1.2rem;
-            color: var(--warm-primary-dark);
-            font-weight: bold;
-        }
-        
-        .diary-card-date {
-            font-size: 0.85rem;
-            color: var(--warm-text-light);
-        }
-        
-        .diary-card-preview {
-            color: var(--warm-text);
-            opacity: 0.8;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            margin-bottom: 0.75rem;
-        }
-        
-        .diary-card-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .diary-card-stats {
-            display: flex;
-            gap: 1rem;
-            font-size: 0.85rem;
-            color: var(--warm-text-light);
-        }
-        
-        .diary-card-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
+    .modal-content .correction-card {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 0.75rem 0.875rem;
+        margin-bottom: 0.625rem;
+        font-size: 0.875rem;
+    }
 
-        .diary-card-actions button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
+    /* 编辑弹窗表单 */
+    .edit-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
 
-        .diary-card-actions button:hover {
-            background: var(--warm-secondary);
-        }
+    .edit-form label {
+        display: block;
+        margin-bottom: 0.4375rem;
+        color: var(--text-2);
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
 
-        .action-btn {
-            display: inline-flex !important;
-            align-items: center;
-            justify-content: center;
-            width: 36px;
-            height: 36px;
-            border-radius: 50% !important;
-            background: #fff5ec !important;
-            color: var(--warm-primary-dark) !important;
-            transition: all 0.25s ease !important;
-        }
+    .edit-form input[type="text"],
+    .edit-form input[type="date"],
+    .edit-form textarea {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.9375rem;
+        box-sizing: border-box;
+    }
 
-        .action-btn:hover {
-            background: #fde6dc !important;
-            color: #e89a82 !important;
-            transform: scale(1.1);
-        }
+    .edit-form input:focus,
+    .edit-form textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+    }
 
-        .action-btn.action-delete:hover {
-            background: #ffe0e0 !important;
-            color: #e89898 !important;
-        }
+    .edit-form textarea {
+        min-height: 220px;
+        resize: vertical;
+        line-height: 1.7;
+    }
 
-        .action-btn svg {
-            display: block;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(92, 74, 61, 0.35);
-            backdrop-filter: blur(4px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        .modal-content {
-            background: var(--warm-card);
-            border-radius: 28px;
-            padding: 2rem;
-            max-width: 700px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 12px 40px rgba(244, 182, 160, 0.25);
-            border: 1px solid #fde6dc;
-        }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--warm-border);
-        }
-        
-        .modal-header h2 {
-            color: var(--warm-primary-dark);
-        }
-        
-        .modal-close {
-            background: #fff5ec;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--warm-primary-dark);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
+    .edit-form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+    }
 
-        .modal-close:hover {
-            background: #fde6dc;
-            color: #e89a82;
-            transform: rotate(90deg);
-        }
-        
-        .modal-body {
-            line-height: 1.8;
-        }
+    .edit-form-actions .btn {
+        min-width: 100px;
+    }
 
-        .modal-corrections {
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid var(--warm-border);
-        }
+    .edit-form-hint {
+        color: var(--text-2);
+        font-size: 0.8125rem;
+        margin-top: -0.25rem;
+    }
 
-        .modal-corrections h3 {
-            color: var(--warm-primary-dark);
-            margin-bottom: 1rem;
-        }
+    .edit-form .word-count-bar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.5rem 0 0;
+        color: var(--text-3);
+        font-size: 0.8125rem;
+    }
 
-        /* ========== 编辑日记弹窗样式 ========== */
-        .edit-form {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
+    .edit-form .word-count-bar strong {
+        color: var(--text-2);
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+    }
 
-        .edit-form label {
-            color: var(--warm-primary-dark);
-            font-weight: bold;
-            margin-bottom: 0.25rem;
-            display: block;
-        }
+    @media (max-width: 768px) {
+        .edit-form textarea { min-height: 180px; }
+        .edit-form-actions { flex-direction: column-reverse; }
+        .edit-form-actions .btn { width: 100%; }
+    }
+</style>
+{% endblock %}
 
-        .edit-form input[type="text"],
-        .edit-form input[type="date"],
-        .edit-form textarea {
-            width: 100%;
-            padding: 0.875rem 1.25rem;
-            border: 2px solid #f3d8c9;
-            border-radius: 20px;
-            background: #fffaf6;
-            color: var(--warm-text);
-            font-family: inherit;
-            font-weight: 500;
-            font-size: 1rem;
-            box-sizing: border-box;
-            transition: all 0.3s ease;
-        }
+{% block content %}
+<div class="container">
+    <div class="diaries-page-header">
+        <h1>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            我的日记
+        </h1>
+        <div class="header-actions">
+            <a href="/write" class="btn btn-primary">写日记</a>
+            <a href="/notebook" class="btn btn-secondary">笔记本</a>
+        </div>
+    </div>
 
-        .edit-form input[type="text"]:focus,
-        .edit-form input[type="date"]:focus,
-        .edit-form textarea:focus {
-            outline: none;
-            border-color: #f4b6a0;
-            background: #fff;
-            box-shadow: 0 0 0 4px rgba(244, 182, 160, 0.15);
-        }
+    <div id="diariesList">
+        <div class="loading"><div class="spinner"></div></div>
+    </div>
+</div>
 
-        .edit-form textarea {
-            min-height: 220px;
-            resize: vertical;
-            line-height: 1.6;
-        }
+<!-- 日记详情弹窗 -->
+<div id="diaryModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle"></h2>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p id="modalDate" style="color: var(--text-2); margin-bottom: 1rem; font-size: 0.875rem;"></p>
+            <div id="modalContent"></div>
+            <div id="modalCorrections" class="modal-corrections" style="display: none;">
+                <h3>批改记录</h3>
+                <div id="modalCorrectionsList"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        .edit-form-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            margin-top: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .edit-form-actions .btn {
-            min-width: 100px;
-        }
-
-        .edit-form-hint {
-            color: var(--warm-text-light);
-            font-size: 0.85rem;
-            margin-top: -0.25rem;
-        }
-
-        @media (max-width: 768px) {
-            .modal-content {
-                padding: 1.25rem;
-                width: 95%;
-            }
-
-            .edit-form textarea {
-                min-height: 180px;
-            }
-
-            .edit-form-actions {
-                flex-direction: column-reverse;
-            }
-
-            .edit-form-actions .btn {
-                width: 100%;
-            }
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: var(--warm-text-light);
-        }
-        
-        .empty-state-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-        }
-        
-        /* 天气主题样式 */
-        body.weather-sunny {
-            --warm-bg: #fff8e7;
-            --warm-card: #fffef5;
-            --warm-primary: #f4c542;
-            --warm-primary-dark: #d4a835;
-            --warm-secondary: #fff0c7;
-            --warm-text: #5c4a1f;
-            --warm-text-light: #a08040;
-            --warm-border: #f0e0a0;
-        }
-        
-        body.weather-rainy {
-            --warm-bg: #e8eef2;
-            --warm-card: #f0f4f8;
-            --warm-primary: #6b8ba4;
-            --warm-primary-dark: #4a6d8a;
-            --warm-secondary: #d0dce8;
-            --warm-text: #3d4a5c;
-            --warm-text-light: #6b7d8f;
-            --warm-border: #c0d0e0;
-        }
-        
-        body.weather-cloudy {
-            --warm-bg: #e5e8eb;
-            --warm-card: #f0f2f4;
-            --warm-primary: #8c9aa8;
-            --warm-primary-dark: #6b7a8a;
-            --warm-secondary: #d8dde3;
-            --warm-text: #4a5568;
-            --warm-text-light: #718096;
-            --warm-border: #c8cdd3;
-        }
-        
-        body.weather-snowy {
-            --warm-bg: #f5f8fa;
-            --warm-card: #ffffff;
-            --warm-primary: #a8c5d8;
-            --warm-primary-dark: #7ba3bd;
-            --warm-secondary: #e0ecf4;
-            --warm-text: #4a6070;
-            --warm-text-light: #7a93a8;
-            --warm-border: #c8dce8;
-        }
-        
-        body.weather-stormy {
-            --warm-bg: #2d3436;
-            --warm-card: #3d484c;
-            --warm-primary: #6c5ce7;
-            --warm-primary-dark: #4834d4;
-            --warm-secondary: #4a5568;
-            --warm-text: #dfe6e9;
-            --warm-text-light: #a0aec0;
-            --warm-border: #4a5568;
-        }
-        
-        body.weather-foggy {
-            --warm-bg: #eceff1;
-            --warm-card: #f5f7f9;
-            --warm-primary: #90a4ae;
-            --warm-primary-dark: #607d8b;
-            --warm-secondary: #cfd8dc;
-            --warm-text: #546e7a;
-            --warm-text-light: #78909c;
-            --warm-border: #cfd8dc;
-        }
-        
-        body.weather-night {
-            --warm-bg: #1a1a2e;
-            --warm-card: #252542;
-            --warm-primary: #7c6aef;
-            --warm-primary-dark: #5a4ad1;
-            --warm-secondary: #3a3a5c;
-            --warm-text: #e0e0f0;
-            --warm-text-light: #a0a0c0;
-            --warm-border: #4a4a6c;
-        }
-        
-        body.weather-sunset {
-            --warm-bg: #fff0e6;
-            --warm-card: #fff5ee;
-            --warm-primary: #ff8a65;
-            --warm-primary-dark: #e57254;
-            --warm-secondary: #ffd0bc;
-            --warm-text: #5c3a2d;
-            --warm-text-light: #a07060;
-            --warm-border: #f0c0a8;
-        }
-        
-        /* 夜间模式特殊样式 */
-        body.weather-night .navbar {
-            background: linear-gradient(135deg, #252542 0%, #3a3a5c 100%);
-        }
-        
-        body.weather-night .logo {
-            color: #c4b5fd;
-        }
-        
-        body.weather-night .nav-links a {
-            color: #d0d0e8;
-        }
-        
-        body.weather-night .nav-links a:hover {
-            background-color: #3a3a5c;
-            color: #c4b5fd;
-        }
-        
-        body.weather-night .diary-card {
-            border: 1px solid #4a4a6c;
-        }
-        
-        /* 暴风雨模式特殊样式 */
-        body.weather-stormy .navbar {
-            background: linear-gradient(135deg, #3d484c 0%, #2d3436 100%);
-        }
-        
-        body.weather-stormy .logo {
-            color: #a29bfe;
-        }
-        
-        body.weather-stormy .nav-links a {
-            color: #d0dce8;
-        }
-        
-        body.weather-stormy .nav-links a:hover {
-            background-color: #4a5568;
-            color: #a29bfe;
-        }
-        
-        body.weather-stormy .diary-card {
-            border: 1px solid #4a5568;
-        }
-    </style>
-</head>
-<body>
-    <!-- 翻开日记本动画 -->
-    <div class="diary-opening-overlay" id="diaryOpeningOverlay">
-        <div class="diary-book">
-            <div class="diary-pages">
-                <div class="diary-lines">
-                    <div class="diary-line"></div>
-                    <div class="diary-line"></div>
-                    <div class="diary-line"></div>
-                    <div class="diary-line"></div>
-                    <div class="diary-line"></div>
-                    <div class="diary-line"></div>
-                    <div class="diary-line"></div>
-                    <div class="diary-line"></div>
+<!-- 编辑日记弹窗 -->
+<div id="editDiaryModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>编辑日记</h2>
+            <button class="modal-close" onclick="closeEditModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="editDiaryForm" class="edit-form" onsubmit="event.preventDefault(); saveEditDiary();">
+                <div>
+                    <label for="editDiaryDate">日期</label>
+                    <input type="date" id="editDiaryDate">
                 </div>
-            </div>
-            <div class="diary-cover">
-                <div class="diary-cover-title">My Diary</div>
-                <div class="diary-cover-subtitle">我的日记</div>
-                <div class="diary-cover-decoration"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="diaries-container">
-        <div class="diaries-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <h1>🌷 我的日记</h1>
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <a href="/write" class="btn btn-primary">💌 写日记</a>
-                <a href="/notebook" class="btn btn-secondary">🦋 笔记本</a>
-            </div>
-        </div>
-        
-        <div id="diariesList">
-            <div class="loading">
-                <div class="spinner"></div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 日记详情弹窗 -->
-    <div id="diaryModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle"></h2>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <p id="modalDate" style="color: var(--warm-text-light); margin-bottom: 1rem;"></p>
-                <div id="modalContent"></div>
-                <div id="modalCorrections" class="modal-corrections" style="display: none;">
-                    <h3>✨ 批改记录</h3>
-                    <div id="modalCorrectionsList"></div>
+                <div>
+                    <label for="editDiaryContent">内容</label>
+                    <textarea id="editDiaryContent" required placeholder="写下今天的英文日记..."></textarea>
+                    <div class="word-count-bar">
+                        <span><strong id="editWcWords">0</strong> 词</span>
+                        <span><strong id="editWcChars">0</strong> 字符</span>
+                        <span><strong id="editWcSentences">0</strong> 句</span>
+                    </div>
+                    <p class="edit-form-hint" style="margin-top: 0.5rem;">保存修改后，AI 批改会重新生成最新的批改结果。</p>
                 </div>
-            </div>
+                <div class="edit-form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeEditModal()">取消</button>
+                    <button type="submit" class="btn btn-primary" id="saveEditBtn">保存修改</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
+{% endblock %}
 
-    <!-- 编辑日记弹窗 -->
-    <div id="editDiaryModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>✏️ 编辑日记</h2>
-                <button class="modal-close" onclick="closeEditModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="editDiaryForm" class="edit-form" onsubmit="event.preventDefault(); saveEditDiary();">
-                    <div>
-                        <label for="editDiaryTitle">🌸 标题</label>
-                        <input type="text" id="editDiaryTitle" maxlength="120" placeholder="给你的日记起个标题...">
-                    </div>
-                    <div>
-                        <label for="editDiaryDate">🌷 日记日期</label>
-                        <input type="date" id="editDiaryDate">
-                    </div>
-                    <div>
-                        <label for="editDiaryContent">💌 内容</label>
-                        <textarea id="editDiaryContent" required placeholder="写下今天的英文日记..."></textarea>
-                        <div class="word-count-bar" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0.25rem; color: var(--warm-text-light); font-size: 0.85rem;">
-                            <span>✨ <strong id="editWcWords">0</strong> 词</span>
-                            <span>📝 <strong id="editWcChars">0</strong> 字符</span>
-                            <span>💬 <strong id="editWcSentences">0</strong> 句</span>
-                        </div>
-                        <p class="edit-form-hint">🌟 提示：保存修改后，AI 批改会重新生成最新的批改结果。</p>
-                    </div>
-                    <div class="edit-form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeEditModal()">🍃 取消</button>
-                        <button type="submit" class="btn btn-primary" id="saveEditBtn">🌸 保存修改</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+{% block extra_js %}
+<script>
+    if (!isLoggedIn()) {
+        window.location.href = '/login';
+    }
 
-    <script src="/static/js/app.js"></script>
-    <script>
-        // 检查登录状态
-        if (!isLoggedIn()) {
-            window.location.href = '/login';
-        }
+    // 天气标签
+    const weatherLabels = {
+        sunny: '晴', cloudy: '多云', rainy: '雨', snowy: '雪',
+        stormy: '暴风雨', foggy: '雾', sunset: '黄昏', night: '夜晚'
+    };
 
-        // ========== 翻开日记本动画控制 ==========
-        function initOpeningAnimation() {
-            // 检查是否需要显示动画（首次访问或刷新时显示）
-            const hasSeenAnimation = sessionStorage.getItem('hasSeenDiariesAnimation');
+    // 加载日记列表
+    async function loadDiaries() {
+        const listDiv = document.getElementById('diariesList');
 
-            if (hasSeenAnimation) {
-                // 已经看过动画，直接隐藏
-                const overlay = document.getElementById('diaryOpeningOverlay');
-                if (overlay) {
-                    overlay.classList.add('hide-animation');
-                }
-            } else {
-                // 首次访问，显示动画
-                sessionStorage.setItem('hasSeenDiariesAnimation', 'true');
+        try {
+            const diaries = await getDiaries();
 
-                // 动画结束后隐藏遮罩层
-                setTimeout(() => {
-                    const overlay = document.getElementById('diaryOpeningOverlay');
-                    if (overlay) {
-                        overlay.classList.add('fade-out');
-                        setTimeout(() => {
-                            overlay.classList.add('hide-animation');
-                        }, 500);
-                    }
-                }, 2800); // 动画总时长
-            }
-        }
-
-        // 页面加载时初始化动画
-        initOpeningAnimation();
-
-        // 天气图标映射
-        const weatherIcons = {
-            sunny: '☀️',
-            cloudy: '☁️',
-            rainy: '🌧️',
-            snowy: '❄️',
-            stormy: '⛈️',
-            foggy: '🌫️',
-            sunset: '🌅',
-            night: '🌙'
-        };
-        
-        // 切换天气主题
-        function changeWeather(weather) {
-            // 移除所有天气类
-            document.body.className = '';
-            document.body.classList.add(`weather-${weather}`);
-            
-            // 更新图标
-            const icon = document.getElementById('weatherIcon');
-            if (icon) {
-                icon.textContent = weatherIcons[weather] || '☀️';
-            }
-            
-            // 保存选择到 localStorage
-            localStorage.setItem('diary_weather', weather);
-        }
-        
-        // 页面加载时恢复天气选择
-        function initWeather() {
-            const savedWeather = localStorage.getItem('diary_weather');
-            if (savedWeather) {
-                const select = document.getElementById('weatherSelect');
-                if (select) {
-                    select.value = savedWeather;
-                }
-                changeWeather(savedWeather);
-            }
-        }
-        
-        // 初始化天气
-        initWeather();
-        
-        // 加载日记列表
-        async function loadDiaries() {
-            const listDiv = document.getElementById('diariesList');
-            
-            try {
-                const diaries = await getDiaries();
-                
-                if (diaries.length === 0) {
-                    listDiv.innerHTML = `
+            if (diaries.length === 0) {
+                listDiv.innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">🌸</div>
                         <h3>还没有日记</h3>
                         <p>开始写下你的第一篇英文日记吧！</p>
                     </div>
                 `;
-                    return;
-                }
-                
-                listDiv.innerHTML = diaries.map(diary => {
-                    const displayDate = diary.diary_date ? new Date(diary.diary_date).toLocaleDateString('zh-CN') : formatDate(diary.created_at);
-                    const displayTitle = diary.title || '无标题';
-                    return `
-                    <div class="diary-card" onclick="showDiaryDetail(${diary.id})">
-                        <div class="diary-card-header">
-                            <div class="diary-card-title">${escapeHtml(displayTitle)}</div>
-                            <div class="diary-card-date">${displayDate}</div>
+                return;
+            }
+
+            listDiv.innerHTML = diaries.map(diary => {
+                const displayDate = diary.diary_date
+                    ? new Date(diary.diary_date).toLocaleDateString('zh-CN')
+                    : formatDate(diary.created_at);
+                const weatherTag = diary.weather && weatherLabels[diary.weather]
+                    ? `<span class="diary-card-weather">${weatherLabels[diary.weather]}</span>`
+                    : '';
+                return `
+                <div class="diary-card" onclick="showDiaryDetail(${diary.id})">
+                    <div class="diary-card-header-row">
+                        <div class="diary-card-date">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                            ${displayDate}
                         </div>
-                        <div class="diary-card-preview">${escapeHtml(diary.content)}</div>
-                        <div class="diary-card-footer">
-                            <div class="diary-card-stats">
-                                <span>🦋 ${diary.corrections ? diary.corrections.length : 0} 处修改</span>
-                                <span>✨ ${diary.content.length} 字</span>
-                            </div>
-                            <div class="diary-card-actions" onclick="event.stopPropagation()">
-                                <button onclick="openEditDiary(${diary.id})" title="编辑" class="action-btn action-edit">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                                </button>
-                                <button onclick="deleteDiaryEntry(${diary.id})" title="删除" class="action-btn action-delete">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
-                                </button>
-                            </div>
+                        ${weatherTag}
+                    </div>
+                    <div class="diary-card-preview">${escapeHtml(diary.content)}</div>
+                    <div class="diary-card-footer-row">
+                        <div class="diary-card-stats">
+                            <span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 20h9"></path>
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                </svg>
+                                ${diary.corrections ? diary.corrections.length : 0} 处修改
+                            </span>
+                            <span>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="4" y1="9" x2="20" y2="9"></line>
+                                    <line x1="4" y1="15" x2="20" y2="15"></line>
+                                    <line x1="10" y1="3" x2="8" y2="21"></line>
+                                    <line x1="16" y1="3" x2="14" y2="21"></line>
+                                </svg>
+                                ${diary.content.length} 字符
+                            </span>
+                        </div>
+                        <div class="diary-card-actions" onclick="event.stopPropagation()">
+                            <button onclick="openEditDiary(${diary.id})" title="编辑">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 20h9"></path>
+                                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                                </svg>
+                            </button>
+                            <button onclick="deleteDiaryEntry(${diary.id})" title="删除" class="action-delete">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                                    <path d="M10 11v6"></path>
+                                    <path d="M14 11v6"></path>
+                                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-                `}).join('');
-                
-            } catch (error) {
-                listDiv.innerHTML = '<p style="text-align: center; color: var(--warm-error);">加载失败，请刷新重试</p>';
-            }
+                </div>
+            `}).join('');
+
+        } catch (error) {
+            listDiv.innerHTML = '<p style="text-align: center; color: var(--error);">加载失败，请刷新重试</p>';
         }
-        
-        // 显示日记详情
-        async function showDiaryDetail(id) {
-            try {
-                const diary = await getDiary(id);
-                
-                document.getElementById('modalTitle').textContent = diary.title;
-                document.getElementById('modalDate').textContent = formatDate(diary.created_at);
-                document.getElementById('modalContent').innerHTML = `<p>${escapeHtml(diary.content).replace(/\n/g, '<br>')}</p>`;
-                
-                const correctionsDiv = document.getElementById('modalCorrections');
-                const correctionsList = document.getElementById('modalCorrectionsList');
-                
-                if (diary.corrections && diary.corrections.length > 0) {
-                    correctionsDiv.style.display = 'block';
-                    correctionsList.innerHTML = diary.corrections.map(c => `
-                        <div class="correction-card" style="margin-bottom: 1rem;">
-                            <div style="color: #c97b7b; text-decoration: line-through;">${escapeHtml(c.original)}</div>
-                            <div style="color: #7a9e7e; font-weight: bold;">✓ ${escapeHtml(c.corrected)}</div>
-                            <div style="color: var(--warm-text-light); font-size: 0.9rem;">📖 ${escapeHtml(c.explanation || '无解释')}</div>
-                        </div>
-                    `).join('');
-                } else {
-                    correctionsDiv.style.display = 'none';
-                }
-                
-                document.getElementById('diaryModal').style.display = 'flex';
-                
-            } catch (error) {
-                showMessage('加载日记详情失败', 'error');
-            }
-        }
-        
-        // 关闭弹窗
-        function closeModal() {
-            document.getElementById('diaryModal').style.display = 'none';
-        }
-        
-        // 删除日记
-        async function deleteDiaryEntry(id) {
-            try {
-                await deleteDiary(id);
-                loadDiaries();
-                showMessage('日记已删除', 'success');
-            } catch (error) {
-                showMessage('删除失败', 'error');
-            }
-        }
+    }
 
-        // ========== 编辑日记功能 ==========
-        let editingDiaryId = null;
+    async function showDiaryDetail(id) {
+        try {
+            const diary = await getDiary(id);
 
-        function toDateInputValue(value) {
-            if (!value) return '';
-            try {
-                const d = new Date(value);
-                if (isNaN(d.getTime())) return '';
-                const tz = d.getTimezoneOffset() * 60000;
-                return new Date(d.getTime() - tz).toISOString().slice(0, 10);
-            } catch (e) {
-                return '';
-            }
-        }
+            document.getElementById('modalTitle').textContent = '日记';
+            document.getElementById('modalDate').textContent = formatDate(diary.created_at);
+            document.getElementById('modalContent').innerHTML = `<p style="line-height: 1.8; white-space: pre-wrap;">${escapeHtml(diary.content)}</p>`;
 
-        async function openEditDiary(id) {
-            try {
-                const diary = await getDiary(id);
-                editingDiaryId = id;
+            const correctionsDiv = document.getElementById('modalCorrections');
+            const correctionsList = document.getElementById('modalCorrectionsList');
 
-                document.getElementById('editDiaryTitle').value = diary.title || '';
-                document.getElementById('editDiaryDate').value = toDateInputValue(diary.diary_date || diary.created_at);
-                const content = diary.content || '';
-                document.getElementById('editDiaryContent').value = content;
-                updateEditWordCount(content);
-
-                const saveBtn = document.getElementById('saveEditBtn');
-                saveBtn.disabled = false;
-                saveBtn.textContent = '🌸 保存修改';
-
-                document.getElementById('editDiaryModal').style.display = 'flex';
-
-                setTimeout(() => {
-                    document.getElementById('editDiaryContent').focus();
-                }, 50);
-            } catch (error) {
-                showMessage('加载日记失败，无法编辑', 'error');
-            }
-        }
-
-        function updateEditWordCount(text) {
-            const trimmed = (text || '').trim();
-            const wordCount = trimmed ? trimmed.split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w)).length : 0;
-            const charCount = trimmed.length;
-            const sentenceCount = trimmed ? trimmed.split(/[.!?]+/).filter(s => s.trim().length > 0).length : 0;
-            const wEl = document.getElementById('editWcWords');
-            const cEl = document.getElementById('editWcChars');
-            const sEl = document.getElementById('editWcSentences');
-            if (wEl) wEl.textContent = wordCount;
-            if (cEl) cEl.textContent = charCount;
-            if (sEl) sEl.textContent = sentenceCount;
-        }
-
-        // 监听编辑弹窗内容变化
-        document.getElementById('editDiaryContent').addEventListener('input', function(e) {
-            updateEditWordCount(e.target.value);
-        });
-
-        function closeEditModal() {
-            document.getElementById('editDiaryModal').style.display = 'none';
-            editingDiaryId = null;
-        }
-
-        async function saveEditDiary() {
-            if (!editingDiaryId) {
-                showMessage('没有可保存的日记', 'error');
-                return;
+            if (diary.corrections && diary.corrections.length > 0) {
+                correctionsDiv.style.display = 'block';
+                correctionsList.innerHTML = diary.corrections.map(c => `
+                    <div class="correction-card">
+                        <div style="color: var(--error); text-decoration: line-through; margin-bottom: 0.3125rem;">${escapeHtml(c.original)}</div>
+                        <div style="color: var(--success); font-weight: 500; margin-bottom: 0.3125rem;">${escapeHtml(c.corrected)}</div>
+                        <div style="color: var(--text-2); font-size: 0.8125rem; line-height: 1.6;">${escapeHtml(c.explanation || '无解释')}</div>
+                    </div>
+                `).join('');
+            } else {
+                correctionsDiv.style.display = 'none';
             }
 
-            const title = document.getElementById('editDiaryTitle').value.trim();
-            const dateValue = document.getElementById('editDiaryDate').value;
-            const content = document.getElementById('editDiaryContent').value.trim();
+            document.getElementById('diaryModal').classList.add('show');
 
-            if (!content) {
-                showMessage('日记内容不能为空', 'error');
-                return;
-            }
+        } catch (error) {
+            showMessage('加载日记详情失败', 'error');
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('diaryModal').classList.remove('show');
+    }
+
+    async function deleteDiaryEntry(id) {
+        if (!confirm('确认删除这条日记？')) return;
+        try {
+            await deleteDiary(id);
+            loadDiaries();
+            showMessage('日记已删除', 'success');
+        } catch (error) {
+            showMessage('删除失败', 'error');
+        }
+    }
+
+    // ========== 编辑 ==========
+    let editingDiaryId = null;
+
+    function toDateInputValue(value) {
+        if (!value) return '';
+        try {
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return '';
+            const tz = d.getTimezoneOffset() * 60000;
+            return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+        } catch (e) {
+            return '';
+        }
+    }
+
+    async function openEditDiary(id) {
+        try {
+            const diary = await getDiary(id);
+            editingDiaryId = id;
+
+            document.getElementById('editDiaryDate').value = toDateInputValue(diary.diary_date || diary.created_at);
+            const content = diary.content || '';
+            document.getElementById('editDiaryContent').value = content;
+            updateEditWordCount(content);
 
             const saveBtn = document.getElementById('saveEditBtn');
-            saveBtn.disabled = true;
-            saveBtn.textContent = '⏳ 正在保存...';
-            try {
-                const body = { title, content };
-                if (dateValue) {
-                    body.diary_date = dateValue + 'T00:00:00';
-                }
-                await apiRequest(`/diaries/${editingDiaryId}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(body)
-                });
-                showMessage('日记修改成功，AI 批改已更新', 'success');
-                closeEditModal();
-                loadDiaries();
-            } catch (error) {
-                showMessage('保存失败：' + (error.message || '请重试'), 'error');
-                saveBtn.disabled = false;
-                saveBtn.textContent = '🌸 保存修改';
-            }
-        }
-        
-        // 转义HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        // 点击弹窗外部关闭
-        document.getElementById('diaryModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
+            saveBtn.disabled = false;
+            saveBtn.textContent = '保存修改';
 
-        // 点击编辑弹窗外部关闭
-        document.getElementById('editDiaryModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeEditModal();
-            }
-        });
+            document.getElementById('editDiaryModal').classList.add('show');
 
-        // 按 Esc 关闭编辑弹窗
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const editModal = document.getElementById('editDiaryModal');
-                if (editModal && editModal.style.display === 'flex') {
-                    closeEditModal();
-                }
+            setTimeout(() => {
+                document.getElementById('editDiaryContent').focus();
+            }, 50);
+        } catch (error) {
+            showMessage('加载日记失败，无法编辑', 'error');
+        }
+    }
+
+    function updateEditWordCount(text) {
+        const trimmed = (text || '').trim();
+        const wordCount = trimmed ? trimmed.split(/\s+/).filter(w => /[A-Za-z0-9]/.test(w)).length : 0;
+        const charCount = trimmed.length;
+        const sentenceCount = trimmed ? trimmed.split(/[.!?]+/).filter(s => s.trim().length > 0).length : 0;
+        const wEl = document.getElementById('editWcWords');
+        const cEl = document.getElementById('editWcChars');
+        const sEl = document.getElementById('editWcSentences');
+        if (wEl) wEl.textContent = wordCount;
+        if (cEl) cEl.textContent = charCount;
+        if (sEl) sEl.textContent = sentenceCount;
+    }
+
+    document.getElementById('editDiaryContent').addEventListener('input', function(e) {
+        updateEditWordCount(e.target.value);
+    });
+
+    function closeEditModal() {
+        document.getElementById('editDiaryModal').classList.remove('show');
+        editingDiaryId = null;
+    }
+
+    async function saveEditDiary() {
+        if (!editingDiaryId) {
+            showMessage('没有可保存的日记', 'error');
+            return;
+        }
+
+        const dateValue = document.getElementById('editDiaryDate').value;
+        const content = document.getElementById('editDiaryContent').value.trim();
+
+        if (!content) {
+            showMessage('日记内容不能为空', 'error');
+            return;
+        }
+
+        const saveBtn = document.getElementById('saveEditBtn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = '正在保存…';
+        try {
+            const body = { content };
+            if (dateValue) {
+                body.diary_date = dateValue + 'T00:00:00';
             }
-        });
-        
-        // 加载日记列表
-        loadDiaries();
-    </script>
-</body>
-</html>
+            await apiRequest(`/diaries/${editingDiaryId}`, {
+                method: 'PUT',
+                body: JSON.stringify(body)
+            });
+            showMessage('日记修改成功，AI 批改已更新', 'success');
+            closeEditModal();
+            loadDiaries();
+        } catch (error) {
+            showMessage('保存失败：' + (error.message || '请重试'), 'error');
+            saveBtn.disabled = false;
+            saveBtn.textContent = '保存修改';
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    document.getElementById('diaryModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    document.getElementById('editDiaryModal').addEventListener('click', function(e) {
+        if (e.target === this) closeEditModal();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeEditModal();
+        }
+    });
+
+    loadDiaries();
+</script>
+{% endblock %}

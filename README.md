@@ -17,8 +17,8 @@
 |-----|------|
 | 后端 | Python 3.11 + FastAPI |
 | 前端 | Jinja2 模板 + 原生 JavaScript |
-| 数据库 | SQLAlchemy + SQLite |
-| AI | 兼容 OpenAI-compatible API (智谱清言 GLM-4) |
+| 数据库 | SQLAlchemy（开发用 SQLite，生产用 PostgreSQL） |
+| AI | 兼容 OpenAI-compatible API（智谱清言 GLM-4） |
 | 认证 | JWT |
 | 部署 | Docker |
 
@@ -31,25 +31,32 @@ digital-planner/
 ├── config.py              # 配置管理（pydantic-settings）
 ├── database.py            # SQLAlchemy 初始化
 ├── main.py                # FastAPI 应用入口
-├── models.py              # 数据库模型 (User, Diary)
+├── models.py              # 数据库模型 (User, Diary, Notebook, Quota)
 ├── schemas.py             # Pydantic 模型定义
 ├── requirements.txt       # Python 依赖
 ├── static/
-│   ├── css/style.css      # 样式
+│   ├── css/style.css      # 统一设计系统（温暖极简）
 │   └── js/app.js          # 前端 API 封装
 ├── templates/
-│   ├── base.html          # 基础模板
+│   ├── base.html          # 基础模板（含顶部导航）
 │   ├── index.html         # 首页
-│   ├── login/register.html # 登录注册
-│   ├── write.html         # 写日记页面（批改展示在这里）
-│   └── diaries.html       # 日记列表
+│   ├── login.html         # 登录
+│   ├── register.html      # 注册（带邮箱验证码）
+│   ├── forgot_password.html # 忘记密码（分步表单）
+│   ├── write.html         # 写日记（批改展示在这里）
+│   ├── diaries.html       # 日记列表
+│   ├── notebook.html      # 笔记本
+│   ├── admin.html         # 后台管理
+│   └── admin_login.html   # 管理员登录
 ├── tests/                 # 集成测试
 │   ├── conftest.py        # pytest fixtures
 │   ├── test_json_parsing.py # JSON 解析单元测试
 │   ├── test_diary_api.py  # API 集成测试
 │   └── test_phrase_search.py # 短语搜索集成测试
+├── start.sh               # 启停脚本
+├── run_tests.sh           # 测试运行器
 ├── .env                   # 环境变量（API key 等）
-├── Dockerfile             # Docker镜像
+├── Dockerfile             # Docker 镜像
 └── README.md              # 项目说明文档
 ```
 
@@ -111,7 +118,13 @@ docker run -d -p 8000:8000 --env-file .env dear-diary
 ### 运行测试
 
 ```bash
-# 运行所有测试
+# 运行所有测试（默认并发）
+bash run_tests.sh
+
+# 串行运行（debug 模式）
+bash run_tests.sh --no-concurrency
+
+# 或直接用 pytest
 pytest tests/ -v
 
 # 单独运行 JSON 解析测试
@@ -320,7 +333,7 @@ server {
 
 | 优先级 | 改进方向 |
 |--------|----------|
-| P1 | 缓存 AI 批改结果，避免重复请求 |
+| P1 | Token 配额支持管理员后台手动调整 |
 | P2 | 支持导出批改报告 PDF |
 | P3 | 用户自定义 AI 提示词模板 |
 

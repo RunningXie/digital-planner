@@ -16,9 +16,19 @@ class UserCreate(UserBase):
 class UserResponse(UserBase):
     id: int
     created_at: datetime
+    daily_token_used: int = 0
+    daily_token_limit: int = 20000
     
     class Config:
         from_attributes = True
+
+
+class UserQuotaResponse(BaseModel):
+    """每日 token 配额信息"""
+    daily_token_used: int
+    daily_token_limit: int
+    remaining: int
+    is_exceeded: bool
 
 
 # Diary schemas
@@ -26,6 +36,7 @@ class DiaryBase(BaseModel):
     title: Optional[str] = ""
     content: str
     diary_date: Optional[datetime] = None
+    weather: Optional[str] = None
 
 
 class DiaryCreate(DiaryBase):
@@ -36,6 +47,7 @@ class DiaryUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     diary_date: Optional[datetime] = None
+    weather: Optional[str] = None
 
 
 class CorrectionItem(BaseModel):
@@ -56,6 +68,7 @@ class DiaryResponse(BaseModel):
     corrections: List[CorrectionItem] = []
     optimized_content: str = ""
     error: Optional[str] = None  # AI error message, None if successful
+    weather: Optional[str] = None
 
     class Config:
         from_attributes = True

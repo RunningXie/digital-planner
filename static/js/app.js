@@ -101,23 +101,15 @@ function hideLoading(elementId) {
 function showMessage(message, type = 'success') {
     const messageDiv = document.createElement('div');
     messageDiv.className = `message message-${type}`;
-    messageDiv.textContent = (type === 'success' ? '🌸 ' : '🥺 ') + message;
-    messageDiv.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;padding:1rem 1.5rem;border-radius:999px;box-shadow:0 8px 24px rgba(244, 182, 160, 0.3);font-weight:600;font-family:inherit;';
-
-    if (type === 'success') {
-        messageDiv.style.background = 'linear-gradient(135deg, #ffd6e0 0%, #ffc1a8 100%)';
-        messageDiv.style.color = '#fff';
-    } else {
-        messageDiv.style.background = 'linear-gradient(135deg, #ffc8c8 0%, #ffb0b0 100%)';
-        messageDiv.style.color = '#fff';
-    }
+    messageDiv.textContent = message;
+    messageDiv.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;padding:0.6875rem 1rem;box-shadow:0 4px 12px rgba(46,40,35,0.08);font-weight:500;font-family:inherit;font-size:0.875rem;min-width:200px;max-width:360px;';
 
     document.body.appendChild(messageDiv);
 
     // 渐入动画
     messageDiv.style.opacity = '0';
-    messageDiv.style.transform = 'translateY(-10px)';
-    messageDiv.style.transition = 'all 0.3s ease';
+    messageDiv.style.transform = 'translateY(-8px)';
+    messageDiv.style.transition = 'all 0.2s ease';
     requestAnimationFrame(() => {
         messageDiv.style.opacity = '1';
         messageDiv.style.transform = 'translateY(0)';
@@ -125,9 +117,9 @@ function showMessage(message, type = 'success') {
 
     setTimeout(() => {
         messageDiv.style.opacity = '0';
-        messageDiv.style.transform = 'translateY(-10px)';
-        setTimeout(() => messageDiv.remove(), 300);
-    }, 3000);
+        messageDiv.style.transform = 'translateY(-8px)';
+        setTimeout(() => messageDiv.remove(), 200);
+    }, 2400);
 }
 
 // 格式化日期

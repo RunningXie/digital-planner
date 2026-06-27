@@ -6,10 +6,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from contextlib import asynccontextmanager
 
 from database import init_db, get_db, engine
@@ -20,7 +21,7 @@ from schemas import (
     Token, PhraseSearchRequest, PhraseSearchResponse,
     NotebookEntryCreate, NotebookEntryUpdate, NotebookEntryResponse,
     SendVerificationCodeRequest, VerifyCodeRequest, VerifyCodeResponse,
-    ResetPasswordRequest
+    ResetPasswordRequest, UserQuotaResponse
 )
 from auth import (
     get_password_hash, verify_password, 
@@ -41,6 +42,42 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
+
+
+# ========== Token Quota ==========
+
+def _estimate_tokens(text: str) -> int:
+    """估算文本的 token 数。英文约 1 token ≈ 3.5 字符，加 prompt 开销。"""
+    if not text:
+        return 100
+    # 输入 token + 输出 token 估算（输出通常与输入相当）
+    return max(100, int(len(text) / 3.5) * 2 + 300)
+
+
+def _check_and_deduct_quota(user: User, estimated_tokens: int, db: Session) -> None:
+    """
+    检查用户每日 token 配额，如果超限抛出 429。
+    如果日期变更则自动重置计数器。
+    """
+    today = date.today()
+    if user.daily_token_date != today:
+        user.daily_token_used = 0
+        user.daily_token_date = today
+        db.commit()
+
+    if user.daily_token_used + estimated_tokens > user.daily_token_limit:
+        smtp_email = settings.smtp_user or "support@example.com"
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"今日 AI 调用额度已用完（{user.daily_token_limit:,} tokens/天）。"
+                f"如需更多配额，请联系我们：{smtp_email}"
+            )
+        )
+
+    user.daily_token_used += estimated_tokens
+    db.commit()
+
 
 # Lifespan handler for startup
 @asynccontextmanager
@@ -208,12 +245,9 @@ async def admin_login(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
     username = data.get("username")
     password = data.get("password")
-    
-    # 管理员账户（硬编码，实际应用中应存储在数据库或环境变量中）
-    ADMIN_USERNAME = "admin"
-    ADMIN_PASSWORD = "admin123"
-    
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+
+    # 管理员账户从环境变量 / .env 读取，避免硬编码到代码里
+    if username == settings.admin_username and password == settings.admin_password:
         # 设置登录状态（使用session）
         request.session["admin_logged_in"] = True
         return {"message": "Login successful"}
@@ -292,6 +326,8 @@ async def admin_stats(request: Request, db: Session = Depends(get_db)):
         User.email,
         User.created_at,
         User.last_active,
+        User.daily_token_used,
+        User.daily_token_limit,
         db.func.count(Diary.id).label("diary_count")
     ).outerjoin(Diary, User.id == Diary.user_id).group_by(User.id).order_by(
         db.func.count(Diary.id).desc()
@@ -303,6 +339,8 @@ async def admin_stats(request: Request, db: Session = Depends(get_db)):
             "username": user.username,
             "email": user.email,
             "diary_count": user.diary_count,
+            "daily_token_used": user.daily_token_used or 0,
+            "daily_token_limit": user.daily_token_limit or 20000,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "last_active": user.last_active.isoformat() if user.last_active else None
         })
@@ -425,6 +463,25 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 
+@app.get("/api/user/quota", response_model=UserQuotaResponse)
+async def get_user_quota(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """获取当前用户的每日 token 配额信息"""
+    today = date.today()
+    if current_user.daily_token_date != today:
+        current_user.daily_token_used = 0
+        current_user.daily_token_date = today
+        db.commit()
+    return UserQuotaResponse(
+        daily_token_used=current_user.daily_token_used,
+        daily_token_limit=current_user.daily_token_limit,
+        remaining=max(0, current_user.daily_token_limit - current_user.daily_token_used),
+        is_exceeded=current_user.daily_token_used >= current_user.daily_token_limit,
+    )
+
+
 # API Routes - Diaries
 @app.post("/api/diaries/stream")
 async def create_diary_stream(
@@ -436,11 +493,16 @@ async def create_diary_stream(
     Stream diary corrections sentence by sentence.
     Returns a server-sent event stream with individual correction results.
     """
+    # 检查 token 配额
+    estimated_tokens = _estimate_tokens(diary.content)
+    _check_and_deduct_quota(current_user, estimated_tokens, db)
+
     db_diary = Diary(
         user_id=current_user.id,
         title=diary.title or "",
         content=diary.content,
-        diary_date=diary.diary_date or datetime.utcnow()
+        diary_date=diary.diary_date or datetime.utcnow(),
+        weather=diary.weather,
     )
     db.add(db_diary)
     db.commit()
@@ -497,7 +559,8 @@ async def save_draft(
         user_id=current_user.id,
         title=diary.title or "",
         content=diary.content,
-        diary_date=diary.diary_date or datetime.utcnow()
+        diary_date=diary.diary_date or datetime.utcnow(),
+        weather=diary.weather,
     )
     db.add(db_diary)
     db.commit()
@@ -650,12 +713,17 @@ async def create_diary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
+    # 检查 token 配额
+    estimated_tokens = _estimate_tokens(diary.content)
+    _check_and_deduct_quota(current_user, estimated_tokens, db)
+
     # Create diary entry
     db_diary = Diary(
         user_id=current_user.id,
         title=diary.title or "",
         content=diary.content,
-        diary_date=diary.diary_date or datetime.utcnow()
+        diary_date=diary.diary_date or datetime.utcnow(),
+        weather=diary.weather,
     )
     db.add(db_diary)
     db.commit()
@@ -740,8 +808,13 @@ async def update_diary(
         db_diary.title = diary_update.title
     if diary_update.diary_date is not None:
         db_diary.diary_date = diary_update.diary_date
+    if diary_update.weather is not None:
+        db_diary.weather = diary_update.weather
     if content_changed:
         db_diary.content = diary_update.content
+        # 检查 token 配额
+        estimated_tokens = _estimate_tokens(diary_update.content)
+        _check_and_deduct_quota(current_user, estimated_tokens, db)
         # Re-run AI corrections
         corrections_result = await ai_service.correct_diary(diary_update.content)
         db_diary.corrections = corrections_result.get("corrections", [])
@@ -789,12 +862,17 @@ async def delete_diary(
 @app.post("/api/search-phrase/stream")
 async def search_phrase_stream(
     request: PhraseSearchRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
     Stream phrase search results.
     Returns server-sent events with incremental results.
     """
+    # 检查 token 配额（短语搜索 token 消耗较小）
+    estimated_tokens = _estimate_tokens(request.phrase)
+    _check_and_deduct_quota(current_user, estimated_tokens, db)
+
     async def stream_results():
         async for item in ai_service.search_phrase_stream(
             request.phrase,

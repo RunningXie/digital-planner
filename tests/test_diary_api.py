@@ -478,3 +478,168 @@ class TestDiaryStream:
             assert len(diaries[0].corrections) == 1
             assert diaries[0].corrections[0]["corrected"] == "I went to school."
 
+
+class TestTokenQuota:
+    """Test daily token quota enforcement for AI API calls."""
+
+    def test_quota_endpoint_returns_correct_info(self, client, auth_headers):
+        """GET /api/user/quota 应返回剩余配额信息。"""
+        response = client.get("/api/user/quota", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["daily_token_limit"] == 20000
+        assert data["daily_token_used"] == 0
+        assert data["remaining"] == 20000
+        assert data["is_exceeded"] is False
+
+    def test_quota_blocks_diary_creation_when_exceeded(self, client, mock_ai_service, auth_headers, db_session):
+        """配额耗尽后，POST /api/diaries 应返回 429。"""
+        # 手动将用户的配额设置为已耗尽
+        from models import User
+        user = db_session.query(User).first()
+        user.daily_token_used = 20000
+        user.daily_token_limit = 20000
+        from datetime import date
+        user.daily_token_date = date.today()
+        db_session.commit()
+
+        response = client.post(
+            "/api/diaries",
+            json={"title": "Test", "content": "Some content to trigger quota check."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 429
+        detail = response.json()["detail"]
+        assert "20,000" in detail or "20000" in detail
+        assert "tokens" in detail.lower()
+
+    def test_quota_blocks_stream_when_exceeded(self, client, mock_ai_service, auth_headers, db_session):
+        """配额耗尽后，POST /api/diaries/stream 应返回 429。"""
+        from models import User
+        from datetime import date
+        user = db_session.query(User).first()
+        user.daily_token_used = 20000
+        user.daily_token_limit = 20000
+        user.daily_token_date = date.today()
+        db_session.commit()
+
+        response = client.post(
+            "/api/diaries/stream",
+            json={"title": "Test", "content": "Some content."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 429
+
+    def test_quota_blocks_update_when_content_changed(self, client, mock_ai_service, auth_headers, db_session):
+        """编辑日记且内容变化时，配额耗尽应返回 429。"""
+        # 先创建一篇日记（配额足够时）
+        response = client.post(
+            "/api/diaries",
+            json={"title": "Original", "content": "Original content."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        diary_id = response.json()["id"]
+
+        # 耗尽配额
+        from models import User
+        from datetime import date
+        user = db_session.query(User).first()
+        user.daily_token_used = 20000
+        user.daily_token_limit = 20000
+        user.daily_token_date = date.today()
+        db_session.commit()
+
+        # 修改内容应触发 AI 调用 → 配额检查 → 429
+        response = client.put(
+            f"/api/diaries/{diary_id}",
+            json={"title": "Updated", "content": "Updated content."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 429
+
+    def test_quota_allows_update_without_content_change(self, client, mock_ai_service, auth_headers, db_session):
+        """编辑日记但内容不变时，不触发 AI 调用，不消耗配额，不返回 429。"""
+        # 先创建一篇日记
+        response = client.post(
+            "/api/diaries",
+            json={"title": "Original", "content": "Original content."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        diary_id = response.json()["id"]
+
+        # 耗尽配额
+        from models import User
+        from datetime import date
+        user = db_session.query(User).first()
+        user.daily_token_used = 20000
+        user.daily_token_limit = 20000
+        user.daily_token_date = date.today()
+        db_session.commit()
+
+        # 只改标题，不改内容 → 不应触发 AI 调用 → 应成功
+        response = client.put(
+            f"/api/diaries/{diary_id}",
+            json={"title": "New Title Only"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["title"] == "New Title Only"
+
+    def test_quota_blocks_phrase_search_when_exceeded(self, client, mock_ai_service, auth_headers, db_session):
+        """配额耗尽后，POST /api/search-phrase/stream 应返回 429。"""
+        from models import User
+        from datetime import date
+        user = db_session.query(User).first()
+        user.daily_token_used = 20000
+        user.daily_token_limit = 20000
+        user.daily_token_date = date.today()
+        db_session.commit()
+
+        response = client.post(
+            "/api/search-phrase/stream",
+            json={"phrase": "hello", "source_lang": "en", "target_lang": "zh"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 429
+
+    def test_quota_resets_on_new_day(self, client, mock_ai_service, auth_headers, db_session):
+        """日期变更时（daily_token_date != today），配额应自动重置。"""
+        from models import User
+        from datetime import date, timedelta
+        user = db_session.query(User).first()
+        # 设置为昨天的配额耗尽状态
+        user.daily_token_used = 20000
+        user.daily_token_limit = 20000
+        user.daily_token_date = date.today() - timedelta(days=1)
+        db_session.commit()
+
+        # 新的一天应能正常创建日记
+        response = client.post(
+            "/api/diaries",
+            json={"title": "New Day", "content": "A fresh start."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+
+        # 配额查询应显示已重置
+        response = client.get("/api/user/quota", headers=auth_headers)
+        data = response.json()
+        assert data["is_exceeded"] is False
+        assert data["remaining"] > 0  # 已消耗了一些
+
+    def test_quota_increments_after_ai_call(self, client, mock_ai_service, auth_headers, db_session):
+        """AI 调用后，daily_token_used 应增加。"""
+        response = client.post(
+            "/api/diaries",
+            json={"title": "Test", "content": "Some content here."},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+
+        response = client.get("/api/user/quota", headers=auth_headers)
+        data = response.json()
+        assert data["daily_token_used"] > 0
+        assert data["remaining"] < data["daily_token_limit"]
+

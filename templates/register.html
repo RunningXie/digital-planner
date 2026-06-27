@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 - Dear Diary</title>
+    <title>注册 — Dear Diary</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <style>
         .verification-group {
@@ -16,34 +16,37 @@
         .btn-send-code {
             white-space: nowrap;
             min-width: 120px;
-            background: var(--warm-primary-light);
-            color: var(--warm-primary-dark);
-            border: 1px solid var(--warm-primary);
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
-            font-size: 0.9rem;
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius);
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+            font-family: inherit;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.15s ease;
         }
         .btn-send-code:hover:not(:disabled) {
-            background: var(--warm-primary);
-            color: white;
+            background: var(--accent-soft);
+            border-color: var(--accent);
+            color: var(--accent);
         }
         .btn-send-code:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
         }
         .verification-status {
-            font-size: 0.85rem;
+            font-size: 0.8125rem;
             margin-top: 0.5rem;
             display: none;
         }
         .verification-status.success {
-            color: #4caf50;
+            color: var(--success);
             display: block;
         }
         .verification-status.error {
-            color: #f44336;
+            color: var(--error);
             display: block;
         }
         .btn-register {
@@ -57,47 +60,45 @@
     </style>
 </head>
 <body>
-    <div class="auth-container">
+    <div class="auth-page">
         <div class="auth-card">
             <div class="auth-header">
                 <h1>创建账号</h1>
                 <p>开始你的英文日记之旅</p>
             </div>
-            
+
             <form id="registerForm">
                 <div class="form-group">
-                    <label class="form-label">用户名</label>
-                    <input type="text" class="form-input" id="username" required placeholder="请输入用户名">
+                    <label class="form-label" for="username">用户名</label>
+                    <input type="text" class="form-input" id="username" required placeholder="请输入用户名" autocomplete="username">
                 </div>
-                
+
                 <div class="form-group">
-                    <label class="form-label">邮箱</label>
+                    <label class="form-label" for="email">邮箱</label>
                     <div class="verification-group">
-                        <input type="email" class="form-input" id="email" required placeholder="请输入邮箱">
+                        <input type="email" class="form-input" id="email" required placeholder="请输入邮箱" autocomplete="email">
                         <button type="button" class="btn-send-code" id="sendCodeBtn" disabled>发送验证码</button>
                     </div>
                     <div class="verification-status" id="emailStatus"></div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label class="form-label">验证码</label>
-                    <input type="text" class="form-input" id="verificationCode" required placeholder="请输入6位验证码" maxlength="6" pattern="[0-9]{6}">
+                    <label class="form-label" for="verificationCode">验证码</label>
+                    <input type="text" class="form-input" id="verificationCode" required placeholder="6 位验证码" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code">
                     <div class="verification-status" id="codeStatus"></div>
                 </div>
-                
+
                 <div class="form-group">
-                    <label class="form-label">密码</label>
-                    <input type="password" class="form-input" id="password" required placeholder="请输入密码（至少6位）" minlength="6">
+                    <label class="form-label" for="password">密码</label>
+                    <input type="password" class="form-input" id="password" required placeholder="至少 6 位" minlength="6" autocomplete="new-password">
                 </div>
-                
+
                 <button type="submit" class="btn btn-primary btn-full btn-register" id="registerBtn" disabled>注册</button>
-                <div id="registerMsg" class="message" style="display:none; margin-top:1rem;"></div>
+                <div id="registerMsg" class="message message-error" style="display:none; margin-top: 1rem;"></div>
             </form>
-            
-            <div style="text-align: center; margin-top: 1.5rem;">
-                <p style="color: var(--warm-text-light);">
-                    已有账号？ <a href="/login" style="color: var(--warm-primary-dark);">立即登录</a>
-                </p>
+
+            <div class="auth-footer">
+                <p>已有账号？ <a href="/login">立即登录</a></p>
             </div>
         </div>
     </div>
@@ -120,7 +121,7 @@
             const isValid = this.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
             sendCodeBtn.disabled = !isValid || emailVerified;
             if (emailVerified) {
-                emailStatus.textContent = '邮箱已验证 ✓';
+                emailStatus.textContent = '邮箱已验证';
                 emailStatus.className = 'verification-status success';
             }
         });
@@ -183,9 +184,9 @@
 
                 if (data.verified) {
                     emailVerified = true;
-                    codeStatus.textContent = '验证码正确 ✓';
+                    codeStatus.textContent = '验证码正确';
                     codeStatus.className = 'verification-status success';
-                    emailStatus.textContent = '邮箱已验证 ✓';
+                    emailStatus.textContent = '邮箱已验证';
                     emailStatus.className = 'verification-status success';
                 } else {
                     emailVerified = false;

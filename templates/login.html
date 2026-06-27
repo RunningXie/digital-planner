@@ -3,38 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登录 - Dear Diary</title>
+    <title>登录 — Dear Diary</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <div class="auth-container">
+    <div class="auth-page">
         <div class="auth-card">
             <div class="auth-header">
                 <h1>欢迎回来</h1>
                 <p>登录你的日记本</p>
             </div>
-            
+
             <form id="loginForm">
                 <div class="form-group">
-                    <label class="form-label">用户名</label>
-                    <input type="text" class="form-input" id="username" required placeholder="请输入用户名">
+                    <label class="form-label" for="username">用户名</label>
+                    <input type="text" class="form-input" id="username" required placeholder="请输入用户名" autocomplete="username">
                 </div>
-                
+
                 <div class="form-group">
-                    <label class="form-label">密码</label>
-                    <input type="password" class="form-input" id="password" required placeholder="请输入密码">
+                    <label class="form-label" for="password">密码</label>
+                    <input type="password" class="form-input" id="password" required placeholder="请输入密码" autocomplete="current-password">
                 </div>
-                
+
                 <button type="submit" class="btn btn-primary btn-full">登录</button>
-                <div id="loginError" class="message message-error" style="display:none; margin-top:1rem;"></div>
+                <div id="loginError" class="message message-error" style="display:none; margin-top: 1rem;"></div>
             </form>
-            
-            <div style="text-align: center; margin-top: 1.5rem;">
-                <p style="color: var(--warm-text-light);">
-                    还没有账号？ <a href="/register" style="color: var(--warm-primary-dark);">立即注册</a>
-                </p>
-                <p style="color: var(--warm-text-light); margin-top: 0.5rem;">
-                    <a href="/forgot-password" style="color: var(--warm-primary-dark); font-size: 0.9rem;">忘记密码？</a>
+
+            <div class="auth-footer">
+                <p>还没有账号？ <a href="/register">立即注册</a></p>
+                <p style="margin-top: 0.4375rem;">
+                    <a href="/forgot-password">忘记密码？</a>
                 </p>
             </div>
         </div>
@@ -44,21 +42,19 @@
     <script>
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            
+
             try {
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     setToken(data.access_token);
                     window.location.href = '/diaries';
