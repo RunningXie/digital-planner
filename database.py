@@ -68,9 +68,9 @@ def init_db():
     except Exception as e:
         print(f"[migrate] 检查/补列失败（非致命）: {e}")
 
-    # 3) 轻量回填：把刚加上的 NOT NULL 列里仍是 NULL 的记录补成模型里的 default
-    #    （SQLite ALTER TABLE ADD COLUMN NOT NULL 必须带 DEFAULT，否则上面已经写过了；
-    #     但历史数据里这些列仍是 NULL，所以再 UPD 一遍。）
+    # 3) 轻量回填：把所有带 default 值的列里仍是 NULL 的记录补成模型里的 default。
+    #    包含 nullable=True 但有默认值的列（如 daily_token_used / daily_token_limit），
+    #    这些列历史上可能因为缺 server_default 被插入 NULL，导致配额检查异常。
     try:
         from datetime import date
         with engine.begin() as conn:
@@ -78,7 +78,7 @@ def init_db():
                 if not inspector.has_table(table_name):
                     continue
                 for col in table.columns:
-                    if col.nullable or col.default is None or not hasattr(col.default, "arg"):
+                    if col.default is None or not hasattr(col.default, "arg"):
                         continue
                     default_val = col.default.arg
                     if default_val is None:

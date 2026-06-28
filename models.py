@@ -14,9 +14,11 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Token quota for AI usage
-    daily_token_used = Column(Integer, default=0)
+    # 用 server_default 是为了在 SQL 层面给已存在的行兜底默认值，
+    # 防止 daily_token_used / daily_token_limit 被插入 NULL。
+    daily_token_used = Column(Integer, nullable=False, default=0, server_default="0")
     daily_token_date = Column(Date, nullable=True)
-    daily_token_limit = Column(Integer, default=20000)  # 20k tokens per day
+    daily_token_limit = Column(Integer, nullable=False, default=20000, server_default="20000")  # 20k tokens per day
 
     # Last activity timestamp (for admin "today active users" stat)
     last_active = Column(DateTime, nullable=True)
