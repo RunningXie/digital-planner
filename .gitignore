@@ -19,6 +19,7 @@ ENV/
 *.swp
 *.swo
 *~
+./trae/
 
 # Testing
 .pytest_cache/
