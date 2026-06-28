@@ -58,6 +58,19 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ) -> User:
+    """标记用户最近活跃时间（admin 后台"今日活跃用户"统计用）。
+
+    改成每 5 分钟最多写一次 DB，避免每个请求都 UPDATE。
+    """
+    now = datetime.utcnow()
+    if (
+        current_user.last_active is None
+        or (now - current_user.last_active).total_seconds() > 300
+    ):
+        current_user.last_active = now
+        db.add(current_user)
+        db.commit()
     return current_user

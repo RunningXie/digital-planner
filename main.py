@@ -4,11 +4,11 @@ import aiohttp
 from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from typing import List
 from datetime import datetime, timedelta, date
 from contextlib import asynccontextmanager
@@ -153,6 +153,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Session middleware (admin login uses request.session)
+# 注意：必须用 settings.secret_key，否则重启后已签发的 session 全部失效
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.secret_key,
+    session_cookie="diary_session",
+    same_site="lax",
+    https_only=False,  # 本地 http 测试；生产部署到 https 时改为 True
+)
+
 class NoCacheStaticFiles(StaticFiles):
     """静态资源默认不缓存，避免改了 CSS/JS 浏览器不刷新。"""
     async def get_response(self, path, scope):
@@ -239,6 +249,9 @@ async def notebook_page(request: Request):
 # Admin Routes
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
+    """后台首页：未登录直接 302 跳到登录页，避免页面闪一下才被踢。"""
+    if not request.session.get("admin_logged_in"):
+        return RedirectResponse(url="/admin/login", status_code=302)
     return render_template("admin.html", request)
 
 
@@ -336,9 +349,9 @@ async def admin_stats(request: Request, db: Session = Depends(get_db)):
         User.last_active,
         User.daily_token_used,
         User.daily_token_limit,
-        db.func.count(Diary.id).label("diary_count")
+        func.count(Diary.id).label("diary_count")
     ).outerjoin(Diary, User.id == Diary.user_id).group_by(User.id).order_by(
-        db.func.count(Diary.id).desc()
+        func.count(Diary.id).desc()
     ).limit(10).all()
     
     top_users_list = []

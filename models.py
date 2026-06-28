@@ -17,7 +17,10 @@ class User(Base):
     daily_token_used = Column(Integer, default=0)
     daily_token_date = Column(Date, nullable=True)
     daily_token_limit = Column(Integer, default=20000)  # 20k tokens per day
-    
+
+    # Last activity timestamp (for admin "today active users" stat)
+    last_active = Column(DateTime, nullable=True)
+
     # Relationship
     diaries = relationship("Diary", back_populates="user", cascade="all, delete-orphan")
 
