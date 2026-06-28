@@ -153,8 +153,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class NoCacheStaticFiles(StaticFiles):
+    """静态资源默认不缓存，避免改了 CSS/JS 浏览器不刷新。"""
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        # dev 时强制每次回源校验；部署到生产可改为 max-age=3600
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
 # Mount static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", NoCacheStaticFiles(directory="static"), name="static")
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 templates_env = Environment(
