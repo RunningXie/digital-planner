@@ -38,7 +38,7 @@
     </div>
 
     <script>
-        const API_BASE = '/api';
+        // API_BASE 来自 /static/js/app.js（base.html 已加载），这里不要再声明一次，否则会冲突。
 
         // 检查是否已登录
         async function checkAuth() {

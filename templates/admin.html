@@ -253,7 +253,8 @@
 
 {% block extra_js %}
 <script>
-    const API_BASE = '/api';
+    // API_BASE / getToken / apiRequest 等工具都来自 /static/js/app.js（base.html 已加载），
+    // 不要再 const 一次，否则会和 app.js 的全局声明冲突，整页 JS 死掉。
 
     function escapeHtml(text) {
         if (text == null) return '';

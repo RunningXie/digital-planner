@@ -276,11 +276,8 @@
 
 {% block extra_js %}
 <script>
-    const API_BASE = '/api';
-
-    function getToken() {
-        return localStorage.getItem('diary_token');
-    }
+    // API_BASE / getToken / apiRequest 等工具都来自 /static/js/app.js（base.html 已加载），
+    // 不要再声明一次，否则会和 app.js 的全局声明冲突，整页 JS 死掉。
 
     function escapeHtml(text) {
         if (text == null) return '';
