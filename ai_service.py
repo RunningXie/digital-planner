@@ -138,7 +138,7 @@ CRITICAL RULES — read carefully before responding:
    - Spelling: Are all words spelled correctly? "castal" should be "castle", "tosated" should be "roasted"
    - Expression: Is the phrasing natural? "by everyone self" → "by ourselves", "was worthy" → "was worth it"
    - Punctuation: comma splices, run-on sentences, missing periods
-3. You MUST output a correction entry for EVERY sentence — even correct ones. For correct sentences, set corrected=same as original and explanation="No errors found."
+3. You MUST output a correction entry for EVERY sentence — even correct ones. For correct sentences, set corrected=same as original and explanation in Chinese meaning "没有发现错误。"
 4. NEVER return an empty corrections array. If the diary has 7 sentences, you MUST return 7 correction entries.
 5. Common mistakes Chinese students make that you MUST catch:
    - Missing articles: "one day trip" → "a one-day trip"
@@ -149,8 +149,13 @@ CRITICAL RULES — read carefully before responding:
 6. Provide 2-3 alternative/better expressions in the suggestions array for each corrected sentence.
 7. Provide a fully rewritten, polished version of the entire diary as optimized_content. When creating the optimized version, use the MORE RECOMMENDED expressions from the suggestions array whenever appropriate, rather than just using the grammatically corrected version.
 
+LANGUAGE REQUIREMENT:
+- The "explanation" field MUST be written in Chinese (简体中文). Briefly explain what was wrong and how it was fixed in Chinese.
+- Keep the original English text of "original" and "corrected" unchanged (they are English diary sentences).
+- Suggestions can be in English (alternative English expressions).
+
 RESPONSE FORMAT — output ONLY this JSON, nothing else:
-{{"corrections": [{{"original": "sentence1", "corrected": "corrected sentence1", "explanation": "what was wrong", "suggestions": ["alt1", "alt2"]}}, {{"original": "sentence2", "corrected": "corrected sentence2", "explanation": "what was wrong", "suggestions": ["alt1", "alt2"]}}], "optimized_content": "full rewritten diary"}}
+{{"corrections": [{{"original": "sentence1", "corrected": "corrected sentence1", "explanation": "用中文说明改了什么", "suggestions": ["alt1", "alt2"]}}, {{"original": "sentence2", "corrected": "corrected sentence2", "explanation": "用中文说明改了什么", "suggestions": ["alt1", "alt2"]}}], "optimized_content": "full rewritten diary"}}
 
 IMPORTANT: Your response must be ONLY the JSON object. No markdown code blocks, no extra text before or after the JSON."""
 
@@ -216,8 +221,13 @@ Check for:
 
 Provide 2-3 alternative/better expressions in the suggestions array.
 
+LANGUAGE REQUIREMENT:
+- The "explanation" field MUST be written in Chinese (简体中文). Briefly explain what was wrong in Chinese.
+- Keep "original" and "corrected" in English (they are English diary sentences).
+- Suggestions can be in English (alternative English expressions).
+
 RESPONSE FORMAT — output ONLY this JSON, nothing else:
-{{"original": "{sentence}", "corrected": "corrected sentence", "explanation": "what was wrong or 'No errors found.'", "suggestions": ["alt1", "alt2"]}}
+{{"original": "{sentence}", "corrected": "corrected sentence", "explanation": "用中文说明错误", "suggestions": ["alt1", "alt2"]}}
 
 IMPORTANT: Your response must be ONLY the JSON object. No markdown code blocks, no extra text."""
 
@@ -254,7 +264,7 @@ IMPORTANT: Your response must be ONLY the JSON object. No markdown code blocks, 
                                 correction = {
                                     "original": sentence,
                                     "corrected": parsed.get("corrected", sentence),
-                                    "explanation": parsed.get("explanation", "No errors found."),
+                                    "explanation": parsed.get("explanation", "没有发现错误。"),
                                     "suggestions": parsed.get("suggestions", [])
                                 }
                             except Exception as parse_error:

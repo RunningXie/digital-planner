@@ -524,6 +524,7 @@ async def create_diary_stream(
         content=diary.content,
         diary_date=diary.diary_date or datetime.utcnow(),
         weather=diary.weather,
+        mood=diary.mood,
     )
     db.add(db_diary)
     db.commit()
@@ -582,6 +583,7 @@ async def save_draft(
         content=diary.content,
         diary_date=diary.diary_date or datetime.utcnow(),
         weather=diary.weather,
+        mood=diary.mood,
     )
     db.add(db_diary)
     db.commit()
@@ -598,6 +600,8 @@ async def save_draft(
         corrections=[],
         optimized_content="",
         error=None,
+        weather=db_diary.weather,
+        mood=db_diary.mood,
     )
 
 
@@ -625,10 +629,14 @@ async def update_draft(
         db_diary.content = diary_update.content
     if diary_update.diary_date is not None:
         db_diary.diary_date = diary_update.diary_date
-    
+    if diary_update.weather is not None:
+        db_diary.weather = diary_update.weather
+    if diary_update.mood is not None:
+        db_diary.mood = diary_update.mood
+
     db.commit()
     db.refresh(db_diary)
-    
+
     return DiaryResponse(
         id=db_diary.id,
         user_id=db_diary.user_id,
@@ -640,92 +648,9 @@ async def update_draft(
         corrections=db_diary.corrections or [],
         optimized_content=db_diary.optimized_content or "",
         error=db_diary.ai_error,
+        weather=db_diary.weather,
+        mood=db_diary.mood,
     )
-
-
-from fastapi import Query
-
-@app.post("/api/correct-sentence")
-async def correct_sentence(
-    sentence: str = Query(...),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Correct a single sentence.
-    Used for real-time correction as user types.
-    """
-    prompt = f"""You are a strict English teacher. Correct this single sentence from a student's diary.
-
-Sentence: "{sentence}"
-
-Check for:
-- Grammar errors (verb tense, subject-verb agreement, articles, prepositions)
-- Spelling errors
-- Expression/naturalness
-- Punctuation errors
-
-Provide 2-3 alternative/better expressions in the suggestions array.
-
-RESPONSE FORMAT — output ONLY this JSON, nothing else:
-{{"original": "{sentence}", "corrected": "corrected sentence", "explanation": "what was wrong or 'No errors found.'", "suggestions": ["alt1", "alt2"]}}
-
-IMPORTANT: Your response must be ONLY the JSON object. No markdown code blocks, no extra text."""
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            payload = {
-                "model": settings.ai_model,
-                "messages": [
-                    {"role": "system", "content": "You are a strict English teacher. Respond ONLY with a valid JSON object. Never use markdown formatting."},
-                    {"role": "user", "content": prompt}
-                ],
-                "temperature": 0.1
-            }
-
-            async with session.post(
-                f"{settings.ai_base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {settings.ai_api_key}",
-                    "Content-Type": "application/json"
-                },
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    return {
-                        "original": sentence,
-                        "corrected": sentence,
-                        "explanation": f"AI API error: {response.status}",
-                        "suggestions": []
-                    }
-
-                result = await response.json()
-                raw_content = result["choices"][0]["message"]["content"]
-
-                try:
-                    parsed = json.loads(raw_content)
-                    return {
-                        "original": sentence,
-                        "corrected": parsed.get("corrected", sentence),
-                        "explanation": parsed.get("explanation", "No errors found."),
-                        "suggestions": parsed.get("suggestions", [])
-                    }
-                except Exception as parse_error:
-                    return {
-                        "original": sentence,
-                        "corrected": sentence,
-                        "explanation": f"Failed to parse AI response: {str(parse_error)}",
-                        "suggestions": []
-                    }
-
-    except Exception as e:
-        return {
-            "original": sentence,
-            "corrected": sentence,
-            "explanation": f"Error: {str(e)}",
-            "suggestions": []
-        }
 
 
 @app.post("/api/diaries", response_model=DiaryResponse)
@@ -745,6 +670,7 @@ async def create_diary(
         content=diary.content,
         diary_date=diary.diary_date or datetime.utcnow(),
         weather=diary.weather,
+        mood=diary.mood,
     )
     db.add(db_diary)
     db.commit()
@@ -772,6 +698,8 @@ async def create_diary(
         corrections=db_diary.corrections or [],
         optimized_content=db_diary.optimized_content or "",
         error=db_diary.ai_error,  # Pass through AI error
+        weather=db_diary.weather,
+        mood=db_diary.mood,
     )
     return response
 
@@ -831,6 +759,8 @@ async def update_diary(
         db_diary.diary_date = diary_update.diary_date
     if diary_update.weather is not None:
         db_diary.weather = diary_update.weather
+    if diary_update.mood is not None:
+        db_diary.mood = diary_update.mood
     if content_changed:
         db_diary.content = diary_update.content
         # 检查 token 配额
@@ -857,6 +787,8 @@ async def update_diary(
         corrections=db_diary.corrections or [],
         optimized_content=db_diary.optimized_content or "",
         error=db_diary.ai_error,
+        weather=db_diary.weather,
+        mood=db_diary.mood,
     )
     return response
 

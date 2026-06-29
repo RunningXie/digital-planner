@@ -45,7 +45,10 @@ class Diary(Base):
 
     # Weather recorded when the diary was written
     weather = Column(String(16), nullable=True, default=None)
-    
+
+    # Mood recorded when the diary was written
+    mood = Column(String(16), nullable=True, default=None)
+
     # Relationship
     user = relationship("User", back_populates="diaries")
 

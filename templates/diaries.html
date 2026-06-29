@@ -58,6 +58,28 @@
         padding: 0.1875rem 0.5rem;
         border-radius: var(--radius-sm);
         border: 1px solid var(--border);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .diary-card-meta {
+        display: flex;
+        gap: 0.375rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .diary-card-mood {
+        font-size: 0.875rem;
+        color: var(--text-2);
+        background: var(--surface-2);
+        padding: 0.1875rem 0.5rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--border);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
     }
 
     .diary-card-footer-row {
@@ -161,7 +183,8 @@
 
     .edit-form input[type="text"],
     .edit-form input[type="date"],
-    .edit-form textarea {
+    .edit-form textarea,
+    .edit-form select {
         width: 100%;
         padding: 0.625rem 0.875rem;
         border: 1px solid var(--border-strong);
@@ -172,9 +195,11 @@
         font-size: 0.9375rem;
         box-sizing: border-box;
     }
+    .edit-form select { cursor: pointer; }
 
     .edit-form input:focus,
-    .edit-form textarea:focus {
+    .edit-form textarea:focus,
+    .edit-form select:focus {
         outline: none;
         border-color: var(--accent);
         box-shadow: 0 0 0 3px var(--accent-soft);
@@ -184,6 +209,12 @@
         min-height: 220px;
         resize: vertical;
         line-height: 1.7;
+    }
+
+    .edit-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
     }
 
     .edit-form-actions {
@@ -279,6 +310,36 @@
                     <label for="editDiaryDate">日期</label>
                     <input type="date" id="editDiaryDate">
                 </div>
+                <div class="edit-form-row">
+                    <div>
+                        <label for="editDiaryWeather">天气</label>
+                        <select id="editDiaryWeather">
+                            <option value="">不选</option>
+                            <option value="sunny">晴</option>
+                            <option value="cloudy">多云</option>
+                            <option value="rainy">雨</option>
+                            <option value="snowy">雪</option>
+                            <option value="stormy">暴风雨</option>
+                            <option value="foggy">雾</option>
+                            <option value="sunset">黄昏</option>
+                            <option value="night">夜晚</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="editDiaryMood">心情</label>
+                        <select id="editDiaryMood">
+                            <option value="">不选</option>
+                            <option value="happy">开心</option>
+                            <option value="calm">平静</option>
+                            <option value="excited">兴奋</option>
+                            <option value="grateful">感恩</option>
+                            <option value="tired">疲惫</option>
+                            <option value="anxious">焦虑</option>
+                            <option value="sad">难过</option>
+                            <option value="angry">生气</option>
+                        </select>
+                    </div>
+                </div>
                 <div>
                     <label for="editDiaryContent">内容</label>
                     <textarea id="editDiaryContent" required placeholder="写下今天的英文日记..."></textarea>
@@ -311,6 +372,12 @@
         stormy: '暴风雨', foggy: '雾', sunset: '黄昏', night: '夜晚'
     };
 
+    // 心情标签
+    const moodLabels = {
+        happy: '开心', calm: '平静', excited: '兴奋', grateful: '感恩',
+        tired: '疲惫', anxious: '焦虑', sad: '难过', angry: '生气'
+    };
+
     // 加载日记列表
     async function loadDiaries() {
         const listDiv = document.getElementById('diariesList');
@@ -335,6 +402,12 @@
                 const weatherTag = diary.weather && weatherLabels[diary.weather]
                     ? `<span class="diary-card-weather">${weatherLabels[diary.weather]}</span>`
                     : '';
+                const moodTag = diary.mood && moodLabels[diary.mood]
+                    ? `<span class="diary-card-mood">${moodLabels[diary.mood]}</span>`
+                    : '';
+                const metaTags = (weatherTag || moodTag)
+                    ? `<div class="diary-card-meta">${weatherTag}${moodTag}</div>`
+                    : '';
                 return `
                 <div class="diary-card" onclick="showDiaryDetail(${diary.id})">
                     <div class="diary-card-header-row">
@@ -347,7 +420,7 @@
                             </svg>
                             ${displayDate}
                         </div>
-                        ${weatherTag}
+                        ${metaTags}
                     </div>
                     <div class="diary-card-preview">${escapeHtml(diary.content)}</div>
                     <div class="diary-card-footer-row">
@@ -400,7 +473,20 @@
             const diary = await getDiary(id);
 
             document.getElementById('modalTitle').textContent = '日记';
-            document.getElementById('modalDate').textContent = formatDate(diary.created_at);
+            const dateLabel = diary.diary_date
+                ? new Date(diary.diary_date).toLocaleDateString('zh-CN')
+                : formatDate(diary.created_at);
+            const metaBits = [];
+            if (diary.weather && weatherLabels[diary.weather]) {
+                metaBits.push(`<span class="diary-card-weather">${weatherLabels[diary.weather]}</span>`);
+            }
+            if (diary.mood && moodLabels[diary.mood]) {
+                metaBits.push(`<span class="diary-card-mood">${moodLabels[diary.mood]}</span>`);
+            }
+            document.getElementById('modalDate').innerHTML = `
+                <span>${dateLabel}</span>
+                ${metaBits.length ? `<span class="diary-card-meta" style="margin-left: 0.5rem;">${metaBits.join('')}</span>` : ''}
+            `;
             document.getElementById('modalContent').innerHTML = `<p style="line-height: 1.8; white-space: pre-wrap;">${escapeHtml(diary.content)}</p>`;
 
             const correctionsDiv = document.getElementById('modalCorrections');
@@ -464,6 +550,8 @@
             document.getElementById('editDiaryDate').value = toDateInputValue(diary.diary_date || diary.created_at);
             const content = diary.content || '';
             document.getElementById('editDiaryContent').value = content;
+            document.getElementById('editDiaryWeather').value = diary.weather || '';
+            document.getElementById('editDiaryMood').value = diary.mood || '';
             updateEditWordCount(content);
 
             const saveBtn = document.getElementById('saveEditBtn');
@@ -510,6 +598,8 @@
 
         const dateValue = document.getElementById('editDiaryDate').value;
         const content = document.getElementById('editDiaryContent').value.trim();
+        const weather = document.getElementById('editDiaryWeather').value;
+        const mood = document.getElementById('editDiaryMood').value;
 
         if (!content) {
             showMessage('日记内容不能为空', 'error');
@@ -520,7 +610,7 @@
         saveBtn.disabled = true;
         saveBtn.textContent = '正在保存…';
         try {
-            const body = { content };
+            const body = { content, weather: weather || null, mood: mood || null };
             if (dateValue) {
                 body.diary_date = dateValue + 'T00:00:00';
             }

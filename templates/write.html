@@ -6,7 +6,8 @@
 <style>
     .write-grid {
         display: grid;
-        grid-template-columns: 1fr 320px;
+        /* 编辑区占大头，右侧固定 280px 辅助栏；不再等宽 */
+        grid-template-columns: 1fr 280px;
         gap: 1.5rem;
         align-items: start;
     }
@@ -15,6 +16,11 @@
         .write-grid {
             grid-template-columns: 1fr;
         }
+    }
+
+    .editor-card {
+        /* 编辑卡片至少和视口一样高，让 textarea 有地方写 */
+        min-height: calc(100vh - 200px);
     }
 
     .write-page-header {
@@ -76,9 +82,22 @@
         font-family: inherit;
     }
 
-    .editor-meta-group input[type="date"]:focus {
+    .editor-meta-group input[type="date"]:focus,
+    .editor-meta-group select:focus {
         outline: none;
         border-color: var(--accent);
+    }
+
+    .editor-meta-group select {
+        padding: 0.375rem 0.625rem;
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-sm);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 0.8125rem;
+        font-family: inherit;
+        cursor: pointer;
+        min-width: 5.5rem;
     }
 
     .editor-toolbar-right {
@@ -108,7 +127,8 @@
 
     .diary-textarea {
         width: 100%;
-        min-height: 380px;
+        /* 自适应视口高度，但不会太矮也不会太高 */
+        min-height: clamp(540px, calc(100vh - 260px), 760px);
         border: none;
         background: transparent;
         color: var(--text);
@@ -155,43 +175,6 @@
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
-    }
-
-    /* 实时批改预览 */
-    .realtime-section {
-        background: var(--surface-2);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        padding: 1.25rem;
-    }
-
-    .realtime-section h3 {
-        font-size: 0.9375rem;
-        font-weight: 600;
-        color: var(--text);
-        margin-bottom: 0.75rem;
-        display: flex;
-        align-items: center;
-        gap: 0.4375rem;
-    }
-
-    .realtime-section h3 svg {
-        width: 16px;
-        height: 16px;
-        color: var(--accent);
-    }
-
-    .realtime-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .realtime-list:empty::before {
-        content: '开启下方开关后，句末标点会触发实时批改';
-        color: var(--text-3);
-        font-size: 0.8125rem;
-        line-height: 1.5;
     }
 
     /* 批改结果区 */
@@ -252,6 +235,31 @@
         line-height: 1.6;
     }
 
+    .correction-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.375rem;
+        margin-top: 0.5rem;
+    }
+
+    .btn-apply {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.625rem;
+        border: 1px solid var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s ease, color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .btn-apply:hover {
+        background: var(--accent);
+        color: #fff;
+    }
+
     .optimized-block {
         background: var(--success-soft);
         border: 1px solid var(--success);
@@ -260,11 +268,53 @@
         margin-top: 1rem;
     }
 
+    .optimized-block-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        gap: 0.75rem;
+    }
+
     .optimized-block h4 {
         color: var(--success);
-        margin-bottom: 0.5rem;
         font-size: 0.9375rem;
         font-weight: 600;
+    }
+
+    .btn-apply-optimized {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.625rem;
+        border: 1px solid var(--success);
+        background: #fff;
+        color: var(--success);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s ease, color 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .btn-apply-optimized:hover {
+        background: var(--success);
+        color: #fff;
+    }
+
+    /* 单条批改之间的等待状态 */
+    .correction-pending {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: var(--surface-2);
+        border: 1px dashed var(--border-strong);
+        border-radius: var(--radius);
+        color: var(--text-2);
+        font-size: 0.8125rem;
+    }
+
+    .correction-pending .spinner {
+        flex-shrink: 0;
     }
 
     .optimized-block p {
@@ -388,12 +438,35 @@
                         <label for="diaryDate" style="color: var(--text-2);">日期</label>
                         <input type="date" id="diaryDate">
                     </div>
+                    <div class="editor-meta-group">
+                        <label for="diaryWeather" style="color: var(--text-2);">天气</label>
+                        <select id="diaryWeather">
+                            <option value="">不选</option>
+                            <option value="sunny">晴</option>
+                            <option value="cloudy">多云</option>
+                            <option value="rainy">雨</option>
+                            <option value="snowy">雪</option>
+                            <option value="stormy">暴风雨</option>
+                            <option value="foggy">雾</option>
+                            <option value="sunset">黄昏</option>
+                            <option value="night">夜晚</option>
+                        </select>
+                    </div>
+                    <div class="editor-meta-group">
+                        <label for="diaryMood" style="color: var(--text-2);">心情</label>
+                        <select id="diaryMood">
+                            <option value="">不选</option>
+                            <option value="happy">开心</option>
+                            <option value="calm">平静</option>
+                            <option value="excited">兴奋</option>
+                            <option value="grateful">感恩</option>
+                            <option value="tired">疲惫</option>
+                            <option value="anxious">焦虑</option>
+                            <option value="sad">难过</option>
+                            <option value="angry">生气</option>
+                        </select>
+                    </div>
                     <div class="editor-toolbar-right">
-                        <label class="toggle" title="输入句末标点时自动批改">
-                            <span>逐句批改</span>
-                            <input type="checkbox" id="realtimeToggle" onchange="toggleRealtimeCorrection()">
-                            <span class="toggle-switch"></span>
-                        </label>
                         <div class="auto-save-status" id="autoSaveStatus">
                             <span class="dot"></span>
                             <span id="autoSaveText">已自动保存</span>
@@ -428,24 +501,16 @@
                 </div>
                 <div id="correctionsList"></div>
                 <div id="optimizedContent" class="optimized-block" style="display: none;">
-                    <h4>优化后的版本</h4>
+                    <div class="optimized-block-header">
+                        <h4>优化后的版本</h4>
+                        <button type="button" class="btn-apply-optimized" onclick="applyOptimized()">应用到原文</button>
+                    </div>
                     <p id="optimizedText"></p>
                 </div>
             </div>
         </div>
 
         <div class="side-panel">
-            <div class="realtime-section">
-                <h3>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    实时批改
-                </h3>
-                <div id="realTimeCorrectionsList" class="realtime-list"></div>
-            </div>
-
             <div class="phrase-search-box">
                 <h3>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -534,8 +599,10 @@
     }
 
     async function autoSaveDraft() {
-        const content = document.getElementById('diaryContent').value.trim();
+        const content = document.getElementById('diaryContent').value;
         const diaryDate = document.getElementById('diaryDate').value;
+        const weather = document.getElementById('diaryWeather').value;
+        const mood = document.getElementById('diaryMood').value;
 
         if (content === _lastSavedContent) return;
         if (!content) return;
@@ -548,7 +615,9 @@
             const token = getToken();
             const payload = {
                 content: content,
-                diary_date: diaryDate ? diaryDate + 'T00:00:00' : null
+                diary_date: diaryDate ? diaryDate + 'T00:00:00' : null,
+                weather: weather || null,
+                mood: mood || null,
             };
 
             let response;
@@ -600,76 +669,49 @@
         }
     });
 
-    // ========== 实时批改 ==========
-    let _sentenceCorrectionQueue = [];
-    let _isCorrecting = false;
-    let _lastCorrectedSentence = '';
-    let _realtimeEnabled = false;
+    // 把单条批改应用到原文里，替换对应的 original 句为 corrected 句
+    function applyCorrection(c, itemEl) {
+        const textarea = document.getElementById('diaryContent');
+        const content = textarea.value;
+        const original = c.original || '';
+        const corrected = c.corrected || '';
+        if (!original || !corrected || original === corrected) return;
 
-    function toggleRealtimeCorrection() {
-        const checkbox = document.getElementById('realtimeToggle');
-        _realtimeEnabled = checkbox.checked;
-        localStorage.setItem('realtime_correction_enabled', _realtimeEnabled.toString());
-
-        if (!_realtimeEnabled) {
-            _sentenceCorrectionQueue = [];
-            _lastCorrectedSentence = '';
-            document.getElementById('realTimeCorrectionsList').innerHTML = '';
+        // 找到 original 在正文中的位置（只替换第一次出现）
+        const idx = content.indexOf(original);
+        if (idx === -1) {
+            showMessage('未在原文找到对应句子，可能已被修改', 'error');
+            return;
         }
+
+        const newContent = content.substring(0, idx) + corrected + content.substring(idx + original.length);
+        textarea.value = newContent;
+
+        // 移除这条批改卡，避免堆叠
+        if (itemEl && itemEl.parentNode) {
+            itemEl.parentNode.removeChild(itemEl);
+        }
+        // 触发自动保存
+        _lastSavedContent = '';
+
+        updateWordCount(newContent);
+        showMessage('已应用到原文', 'success');
     }
 
-    document.getElementById('diaryContent').addEventListener('input', function(e) {
-        if (!_realtimeEnabled) return;
-        const content = e.target.value;
-        const lastEnd = Math.max(
-            content.lastIndexOf('.'),
-            content.lastIndexOf('!'),
-            content.lastIndexOf('?')
-        );
-        if (lastEnd !== -1) {
-            const sentence = content.substring(0, lastEnd + 1).trim();
-            if (sentence && sentence !== _lastCorrectedSentence && sentence.length > 5) {
-                _lastCorrectedSentence = sentence;
-                _sentenceCorrectionQueue.push(sentence);
-                processCorrectionQueue();
-            }
-        }
-    });
+    // 把"优化后的版本"整段替换进正文
+    function applyOptimized() {
+        const optimized = document.getElementById('optimizedText').textContent;
+        if (!optimized) return;
+        const textarea = document.getElementById('diaryContent');
 
-    async function processCorrectionQueue() {
-        if (_isCorrecting || _sentenceCorrectionQueue.length === 0) return;
-        _isCorrecting = true;
-        const sentence = _sentenceCorrectionQueue.shift();
-        try {
-            const token = getToken();
-            const response = await fetch(`${API_BASE}/correct-sentence?sentence=${encodeURIComponent(sentence)}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const correction = await response.json();
-                if (correction.explanation !== 'No errors found.') {
-                    renderRealtimeCorrection(correction);
-                }
-            }
-        } catch (error) {
-            console.error('Real-time correction error:', error);
-        } finally {
-            _isCorrecting = false;
-            processCorrectionQueue();
-        }
-    }
+        textarea.value = optimized;
 
-    function renderRealtimeCorrection(c) {
-        const list = document.getElementById('realTimeCorrectionsList');
-        const item = document.createElement('div');
-        item.className = 'correction-item';
-        item.innerHTML = `
-            <div class="correction-original">${escapeHtml(c.original)}</div>
-            <div class="correction-corrected">${escapeHtml(c.corrected)}</div>
-            <div class="correction-explanation">${escapeHtml(c.explanation || '无解释')}</div>
-        `;
-        list.appendChild(item);
+        // 清空所有批改结果
+        document.getElementById('correctionsList').innerHTML = '';
+        _lastSavedContent = '';  // 触发一次自动保存
+
+        updateWordCount(optimized);
+        showMessage('已应用优化版本', 'success');
     }
 
     // ========== 短语搜索（流式） ==========
@@ -734,6 +776,23 @@
     function handlePhraseStreamData(data, resultsDiv) {
         if (data.type === 'cached') {
             displayPhraseResults(data, resultsDiv);
+            return;
+        }
+        // AI 流式：分别增量渲染各 section（避免每段覆盖上一段）
+        if (data.type === 'translations' && data.translations?.length) {
+            appendPhraseSection(resultsDiv, '翻译', data.translations);
+            return;
+        }
+        if (data.type === 'examples' && data.examples?.length) {
+            appendPhraseSection(resultsDiv, '例句', data.examples);
+            return;
+        }
+        if (data.type === 'alternatives' && data.alternatives?.length) {
+            appendPhraseSection(resultsDiv, '其他表达', data.alternatives);
+            return;
+        }
+        if (data.type === 'complete') {
+            // 三个 section 已经增量渲染完，无需重复
             return;
         }
         if (data.error) {
@@ -808,6 +867,8 @@
     async function saveOnly() {
         const content = document.getElementById('diaryContent').value.trim();
         const diaryDate = document.getElementById('diaryDate').value;
+        const weather = document.getElementById('diaryWeather').value;
+        const mood = document.getElementById('diaryMood').value;
 
         if (!content) {
             showMessage('请输入日记内容', 'error');
@@ -818,7 +879,9 @@
             const token = getToken();
             const payload = {
                 content: content,
-                diary_date: diaryDate ? diaryDate + 'T00:00:00' : null
+                diary_date: diaryDate ? diaryDate + 'T00:00:00' : null,
+                weather: weather || null,
+                mood: mood || null,
             };
             let response;
             if (_currentDraftId) {
@@ -862,6 +925,8 @@
 
         const content = document.getElementById('diaryContent').value.trim();
         const diaryDate = document.getElementById('diaryDate').value;
+        const weather = document.getElementById('diaryWeather').value;
+        const mood = document.getElementById('diaryMood').value;
 
         if (!content) {
             showMessage('请输入日记内容', 'error');
@@ -878,7 +943,8 @@
         const optimizedText = document.getElementById('optimizedText');
 
         section.style.display = 'block';
-        listDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:0.5rem;color:var(--text-2);">AI 正在逐句批改中…</p></div>';
+        listDiv.innerHTML = '';
+        appendPendingIndicator(listDiv);
         optimizedDiv.style.display = 'none';
         section.scrollIntoView({ behavior: 'smooth' });
 
@@ -892,7 +958,9 @@
                 },
                 body: JSON.stringify({
                     content: content,
-                    diary_date: diaryDate ? diaryDate + 'T00:00:00' : null
+                    diary_date: diaryDate ? diaryDate + 'T00:00:00' : null,
+                    weather: weather || null,
+                    mood: mood || null,
                 })
             });
 
@@ -924,6 +992,7 @@
                 }
             }
         } catch (error) {
+            removePendingIndicator(listDiv);
             if (optimizedDiv.style.display === 'block') {
                 const errCard = document.createElement('div');
                 errCard.className = 'correction-item';
@@ -952,20 +1021,51 @@
             return;
         }
         if (data.type === 'done') {
+            removePendingIndicator(listDiv);
             showMessage('日记已保存并批改完成', 'success');
             return;
         }
         const c = data;
+        // 收到一条批改：先摘掉 pending，避免和卡片混杂
+        removePendingIndicator(listDiv);
         const card = document.createElement('div');
         card.className = 'correction-item';
-        const hasError = c.explanation !== 'No errors found.';
+        const hasError = c.explanation !== 'No errors found.' && c.explanation !== '没有发现错误。'
+            && c.original && c.corrected && c.original !== c.corrected;
         card.innerHTML = `
             <div class="correction-original">${escapeHtml(c.original)}</div>
             ${hasError ? `<div class="correction-corrected">${escapeHtml(c.corrected)}</div>` : ''}
             <div class="correction-explanation">${escapeHtml(c.explanation || '无解释')}</div>
+            ${hasError ? `<div class="correction-actions">
+                <button type="button" class="btn-apply">应用</button>
+            </div>` : ''}
         `;
+        const applyBtn = card.querySelector('.btn-apply');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', function() {
+                applyCorrection(c, card);
+            });
+        }
         listDiv.appendChild(card);
+        // 在最后追加 pending，等待下一条
+        appendPendingIndicator(listDiv);
         card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // 在批改列表末尾追加一个等待下一句的提示
+    function appendPendingIndicator(listDiv) {
+        if (listDiv.querySelector('.correction-pending')) return;
+        const pending = document.createElement('div');
+        pending.className = 'correction-pending';
+        pending.innerHTML = '<div class="spinner"></div><span>正在批改下一句…</span>';
+        listDiv.appendChild(pending);
+    }
+
+    function removePendingIndicator(listDiv) {
+        const pending = listDiv.querySelector('.correction-pending');
+        if (pending && pending.parentNode) {
+            pending.parentNode.removeChild(pending);
+        }
     }
 
     // ========== 清空 ==========
@@ -975,12 +1075,9 @@
         document.getElementById('correctionsSection').style.display = 'none';
         document.getElementById('correctionsList').innerHTML = '';
         document.getElementById('optimizedContent').style.display = 'none';
-        document.getElementById('realTimeCorrectionsList').innerHTML = '';
         _currentDraftId = null;
         _lastSavedContent = '';
         updateAutoSaveStatus('ok');
-        _sentenceCorrectionQueue = [];
-        _lastCorrectedSentence = '';
         updateWordCount('');
     }
 

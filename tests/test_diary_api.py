@@ -5,7 +5,7 @@ Integration tests for diary API endpoints:
 - GET /api/diaries/{id}
 - PUT /api/diaries/{id}
 - DELETE /api/diaries/{id}
-- POST /api/correct-sentence (real-time single sentence correction)
+- POST /api/diaries/stream (streaming correction)
 """
 import pytest
 from datetime import datetime
@@ -282,102 +282,6 @@ class TestDeleteDiary:
     def test_delete_nonexistent_diary(self, client, auth_headers):
         response = client.delete("/api/diaries/99999", headers=auth_headers)
         assert response.status_code == 404
-
-
-class TestCorrectSentence:
-    """Test POST /api/correct-sentence — real-time single sentence correction.
-    
-    This endpoint directly uses aiohttp (not through the mocked ai_service),
-    so it catches import errors and configuration issues.
-    """
-
-    def test_correct_sentence_success(self, client, auth_headers):
-        """Happy path: correct a single sentence with mocked aiohttp response."""
-        mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            "choices": [{
-                "message": {
-                    "content": json.dumps({
-                        "original": "I go to school yesterday.",
-                        "corrected": "I went to school yesterday.",
-                        "explanation": "Verb tense error: 'go' should be 'went' (past tense).",
-                        "suggestions": ["I went to school yesterday.", "I attended school yesterday."]
-                    })
-                }
-            }]
-        })
-        
-        mock_session = AsyncMock()
-        mock_session.post = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
-        
-        with patch("aiohttp.ClientSession", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_session)
-        )):
-            response = client.post(
-                "/api/correct-sentence?sentence=I go to school yesterday.",
-                headers=auth_headers,
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert data["original"] == "I go to school yesterday."
-            assert data["corrected"] == "I went to school yesterday."
-            assert "Verb tense error" in data["explanation"]
-            assert len(data["suggestions"]) == 2
-
-    def test_correct_sentence_api_error(self, client, auth_headers):
-        """AI API returns error (e.g., 500) — should return error message."""
-        mock_response = MagicMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal Server Error")
-        
-        mock_session = AsyncMock()
-        mock_session.post = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
-        
-        with patch("aiohttp.ClientSession", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_session)
-        )):
-            response = client.post(
-                "/api/correct-sentence?sentence=Test sentence.",
-                headers=auth_headers,
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert data["original"] == "Test sentence."
-            assert "AI API error" in data["explanation"]
-
-    def test_correct_sentence_invalid_json(self, client, auth_headers):
-        """AI returns invalid JSON — should handle gracefully."""
-        mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={
-            "choices": [{
-                "message": {
-                    "content": "This is not valid JSON"
-                }
-            }]
-        })
-        
-        mock_session = AsyncMock()
-        mock_session.post = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(return_value=mock_response)))
-        
-        with patch("aiohttp.ClientSession", return_value=AsyncMock(
-            __aenter__=AsyncMock(return_value=mock_session)
-        )):
-            response = client.post(
-                "/api/correct-sentence?sentence=Test sentence.",
-                headers=auth_headers,
-            )
-            assert response.status_code == 200
-            data = response.json()
-            assert data["original"] == "Test sentence."
-            assert "Failed to parse" in data["explanation"]
-
-    def test_correct_sentence_unauthenticated(self, client, db_session):
-        """Unauthenticated requests should get 401."""
-        # The client fixture overrides auth, so we need to test without it
-        # This is a known limitation - manual testing required
-        pass  # Skipped: auth override limitation
 
 
 class TestDiaryStream:

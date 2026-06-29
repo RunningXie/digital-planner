@@ -37,6 +37,7 @@ class DiaryBase(BaseModel):
     content: str
     diary_date: Optional[datetime] = None
     weather: Optional[str] = None
+    mood: Optional[str] = None
 
 
 class DiaryCreate(DiaryBase):
@@ -48,6 +49,7 @@ class DiaryUpdate(BaseModel):
     content: Optional[str] = None
     diary_date: Optional[datetime] = None
     weather: Optional[str] = None
+    mood: Optional[str] = None
 
 
 class CorrectionItem(BaseModel):
@@ -69,6 +71,7 @@ class DiaryResponse(BaseModel):
     optimized_content: str = ""
     error: Optional[str] = None  # AI error message, None if successful
     weather: Optional[str] = None
+    mood: Optional[str] = None
 
     class Config:
         from_attributes = True
