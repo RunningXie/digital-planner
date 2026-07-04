@@ -46,3 +46,7 @@ Thumbs.db
 
 # Local development
 *.local
+
+# Large data files (downloaded on deploy, see scripts/download_ecdict.py)
+data/ecdict.csv
+data/ecdict.csv.tmp

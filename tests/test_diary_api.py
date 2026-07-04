@@ -503,7 +503,7 @@ class TestTokenQuota:
 
         response = client.post(
             "/api/search-phrase/stream",
-            json={"phrase": "hello", "source_lang": "en", "target_lang": "zh"},
+            json={"phrase": "xyzzznotarealword999", "source_lang": "en", "target_lang": "zh"},
             headers=auth_headers,
         )
         assert response.status_code == 429

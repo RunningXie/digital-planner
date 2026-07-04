@@ -193,7 +193,7 @@ class TestSearchPhraseSourceLanguage:
         """Default source_lang is 'zh', target_lang is 'en'."""
         response = client.post(
             "/api/search-phrase/stream",
-            json={"phrase": "hello"},
+            json={"phrase": "xyzzznotarealword999"},
             headers=auth_headers
         )
         assert response.status_code == 200
@@ -201,4 +201,173 @@ class TestSearchPhraseSourceLanguage:
             pass
 
         assert len(mock_ai_stream_lang) == 1
-        assert mock_ai_stream_lang[0] == ("hello", "zh", "en")
+        assert mock_ai_stream_lang[0] == ("xyzzznotarealword999", "zh", "en")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  笔记本命中短路：搜索时先查用户的笔记本
+# ═══════════════════════════════════════════════════════════════════
+
+class TestSearchPhraseNotebookHit:
+    """笔记本命中应该短路 AI 调用，直接返回保存的词条。"""
+
+    @pytest.fixture
+    def mock_ai_stream_should_not_be_called(self):
+        """AI 不应该被调用；一旦被调用则测试失败。"""
+        async def fail_if_called(phrase, source_lang="zh", target_lang="en"):
+            raise AssertionError("AI service should not be called when notebook hit")
+            yield  # 满足 async generator 语法，实际不会执行
+        with patch("main.ai_service.search_phrase_stream", new=fail_if_called):
+            yield
+
+    def _seed_notebook(self, db_session, test_user):
+        """为测试用户写入一条笔记。"""
+        from models import NotebookEntry
+        entry = NotebookEntry(
+            user_id=test_user.id,
+            phrase="work overtime",
+            translations=["加班"],
+            examples=["I had to work overtime yesterday."],
+            alternatives=["put in extra hours", "work late"],
+        )
+        db_session.add(entry)
+        db_session.commit()
+        db_session.refresh(entry)
+        return entry
+
+    def test_phrase_field_match_skips_ai(self, client, db_session, test_user, auth_headers, mock_ai_stream_should_not_be_called):
+        """搜索的词命中 notebook.phrase 字段时直接返回，且 AI 不被调用。"""
+        from models import NotebookEntry
+        self._seed_notebook(db_session, test_user)
+
+        response = client.post(
+            "/api/search-phrase/stream",
+            json={"phrase": "work overtime"},
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+
+        events = [line[6:] for line in response.iter_lines() if line and line.startswith("data: ")]
+        assert len(events) == 1
+        payload = events[0]
+        assert '"source": "notebook"' in payload
+        assert '"work overtime"' in payload
+        assert '"加班"' in payload
+        assert '"type": "cached"' in payload
+
+    def test_translation_field_match_skips_ai(self, client, db_session, test_user, auth_headers, mock_ai_stream_should_not_be_called):
+        """命中 translations 字段（如中文查 English 笔记）也应短路 AI。"""
+        self._seed_notebook(db_session, test_user)
+
+        response = client.post(
+            "/api/search-phrase/stream",
+            json={"phrase": "加班"},
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+
+        events = [line[6:] for line in response.iter_lines() if line and line.startswith("data: ")]
+        assert len(events) == 1
+        assert '"source": "notebook"' in events[0]
+
+    def test_alternative_field_match_skips_ai(self, client, db_session, test_user, auth_headers, mock_ai_stream_should_not_be_called):
+        """命中 alternatives 字段也应短路 AI。"""
+        self._seed_notebook(db_session, test_user)
+
+        response = client.post(
+            "/api/search-phrase/stream",
+            json={"phrase": "put in extra hours"},
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+        events = [line[6:] for line in response.iter_lines() if line and line.startswith("data: ")]
+        assert len(events) == 1
+        assert '"source": "notebook"' in events[0]
+
+    def test_case_insensitive_match(self, client, db_session, test_user, auth_headers, mock_ai_stream_should_not_be_called):
+        """匹配应该大小写不敏感。"""
+        self._seed_notebook(db_session, test_user)
+
+        response = client.post(
+            "/api/search-phrase/stream",
+            json={"phrase": "WORK OVERTIME"},
+            headers=auth_headers
+        )
+        assert response.status_code == 200
+        events = [line[6:] for line in response.iter_lines() if line and line.startswith("data: ")]
+        assert len(events) == 1
+        assert '"source": "notebook"' in events[0]
+
+    def test_no_match_falls_through_to_ai(self, client, db_session, test_user, auth_headers):
+        """笔记本里没有的词应该正常走 AI 调用。"""
+        from unittest.mock import patch
+        self._seed_notebook(db_session, test_user)
+
+        async def mock_ai(phrase, source_lang="zh", target_lang="en"):
+            yield {"type": "translations", "translations": ["new result"]}
+            yield {"type": "complete", "phrase": phrase, "translations": ["new result"], "examples": [], "alternatives": [], "source": "ai"}
+
+        with patch("main.ai_service.search_phrase_stream", new=mock_ai):
+            response = client.post(
+                "/api/search-phrase/stream",
+                json={"phrase": "完全不相关的词xyz"},
+                headers=auth_headers
+            )
+        assert response.status_code == 200
+        events = [line[6:] for line in response.iter_lines() if line and line.startswith("data: ")]
+        # 至少有一个 translations 事件，且不含 notebook source
+        assert any('"translations"' in e and '"new result"' in e for e in events)
+        assert not any('"source": "notebook"' in e for e in events)
+
+    def test_notebook_hit_does_not_consume_quota(self, client, db_session, test_user, auth_headers, mock_ai_stream_should_not_be_called):
+        """笔记本命中不应该消耗用户的 token 配额。"""
+        from models import User
+        before = test_user.daily_token_used
+        self._seed_notebook(db_session, test_user)
+
+        response = client.post(
+            "/api/search-phrase/stream",
+            json={"phrase": "work overtime"},
+            headers=auth_headers
+        )
+        for _ in response.iter_lines():
+            pass
+        db_session.refresh(test_user)
+        assert test_user.daily_token_used == before, "笔记本命中不应该扣 token 配额"
+
+    def test_other_users_notebook_does_not_match(self, client, db_session, test_user, auth_headers):
+        """别的用户的笔记不应该匹配当前用户。"""
+        from models import User, NotebookEntry
+        other = User(
+            username="otheruser",
+            email="other@example.com",
+            hashed_password="x",
+        )
+        db_session.add(other)
+        db_session.commit()
+        db_session.refresh(other)
+        other_entry = NotebookEntry(
+            user_id=other.id,
+            phrase="work overtime",
+            translations=["加班"],
+            examples=[],
+            alternatives=[],
+        )
+        db_session.add(other_entry)
+        db_session.commit()
+
+        async def mock_ai(phrase, source_lang="zh", target_lang="en"):
+            yield {"type": "translations", "translations": ["from ai"]}
+            yield {"type": "complete", "phrase": phrase, "translations": ["from ai"], "examples": [], "alternatives": [], "source": "ai"}
+
+        with patch("main.ai_service.search_phrase_stream", new=mock_ai):
+            response = client.post(
+                "/api/search-phrase/stream",
+                json={"phrase": "work overtime"},
+                headers=auth_headers
+            )
+        for _ in response.iter_lines():
+            pass
+        events = [line[6:] for line in response.iter_lines() if line and line.startswith("data: ")]
+        # 别人的笔记不能匹配，应该走到 AI
+        assert not any('"source": "notebook"' in e for e in events)

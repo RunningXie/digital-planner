@@ -29,6 +29,7 @@ from auth import (
     get_current_user
 )
 from ai_service import ai_service
+from static_dictionary import search as static_dict_search
 from email_service import (
     send_verification_email, create_verification_code, verify_code
 )
@@ -812,6 +813,42 @@ async def delete_diary(
 
 
 # API Routes - Phrase Search
+def _check_notebook_for_phrase(db: Session, user: User, phrase: str) -> dict | None:
+    """
+    先查用户的笔记本是否有匹配的词条。
+    匹配规则：phrase 字段、translations 列表、alternatives 列表任一大小写不敏感包含。
+    命中则返回与 AI 返回结构一致的 dict（type=cached, source=notebook）。
+    """
+    if not phrase:
+        return None
+    phrase_lower = phrase.lower()
+    entries = db.query(NotebookEntry).filter(
+        NotebookEntry.user_id == user.id
+    ).all()
+    for entry in entries:
+        if phrase_lower in (entry.phrase or "").lower():
+            return _build_notebook_hit(entry, "phrase")
+        if any(phrase_lower in (t or "").lower() for t in (entry.translations or [])):
+            return _build_notebook_hit(entry, "translations")
+        if any(phrase_lower in (a or "").lower() for a in (entry.alternatives or [])):
+            return _build_notebook_hit(entry, "alternatives")
+    return None
+
+
+def _build_notebook_hit(entry: "NotebookEntry", matched_field: str) -> dict:
+    """把 NotebookEntry 构造成前端能识别的 cached 事件。"""
+    return {
+        "type": "cached",
+        "source": "notebook",
+        "phrase": entry.phrase,
+        "translations": entry.translations or [],
+        "examples": entry.examples or [],
+        "alternatives": entry.alternatives or [],
+        "matched_field": matched_field,
+        "entry_id": entry.id,
+    }
+
+
 @app.post("/api/search-phrase/stream")
 async def search_phrase_stream(
     request: PhraseSearchRequest,
@@ -821,8 +858,29 @@ async def search_phrase_stream(
     """
     Stream phrase search results.
     Returns server-sent events with incremental results.
+    命中顺序：用户笔记本 → 内置静态词典 → 内存缓存 → AI 调用。
+    笔记本和词典命中都不消耗 token 配额。
     """
-    # 检查 token 配额（短语搜索 token 消耗较小）
+    # 1. 查笔记本（用户私有，命中即返回，不消耗配额）
+    notebook_hit = _check_notebook_for_phrase(db, current_user, request.phrase)
+    if notebook_hit:
+        async def stream_notebook():
+            yield f"data: {json.dumps(notebook_hit, ensure_ascii=False)}\n\n"
+        return StreamingResponse(stream_notebook(), media_type="text/event-stream")
+
+    # 2. 查内置静态词典（精选短语 + ECDict 通用词库，离线即查，不消耗配额）
+    dict_hit = static_dict_search(request.phrase)
+    if dict_hit:
+        # dict_hit 已包含 source（'dictionary' 精选 / 'ecdict' 通用）
+        dict_event = {
+            "type": "cached",
+            **dict_hit,
+        }
+        async def stream_dict():
+            yield f"data: {json.dumps(dict_event, ensure_ascii=False)}\n\n"
+        return StreamingResponse(stream_dict(), media_type="text/event-stream")
+
+    # 3. 检查 token 配额（短语搜索 token 消耗较小）
     estimated_tokens = _estimate_tokens(request.phrase)
     _check_and_deduct_quota(current_user, estimated_tokens, db)
 

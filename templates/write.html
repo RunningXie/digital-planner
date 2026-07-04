@@ -6,14 +6,20 @@
 <style>
     .write-grid {
         display: grid;
-        /* 编辑区占大头，右侧固定 280px 辅助栏；不再等宽 */
-        grid-template-columns: 1fr 280px;
+        /* 编辑区占大头，右侧辅助栏 260px；可整列收起 */
+        grid-template-columns: 1fr 260px;
         gap: 1.5rem;
         align-items: start;
+        transition: grid-template-columns 0.2s ease;
+    }
+
+    .write-grid.side-collapsed {
+        grid-template-columns: 1fr 0;
     }
 
     @media (max-width: 900px) {
-        .write-grid {
+        .write-grid,
+        .write-grid.side-collapsed {
             grid-template-columns: 1fr;
         }
     }
@@ -175,6 +181,84 @@
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
+        overflow: hidden;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .write-grid.side-collapsed .side-panel {
+        opacity: 0;
+        transform: translateX(20px);
+        pointer-events: none;
+    }
+
+    /* 右侧栏收起 / 展开按钮 */
+    .side-panel-header {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: -0.5rem;
+    }
+
+    .side-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-2);
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+        white-space: nowrap;
+    }
+
+    .side-toggle:hover {
+        color: var(--accent);
+        border-color: var(--border-strong);
+        background: var(--surface-2);
+    }
+
+    .side-toggle svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* 收起后右侧贴边的展开按钮 */
+    .side-expand-fab {
+        position: fixed;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        color: var(--text-2);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: var(--shadow-sm);
+        transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        z-index: 50;
+    }
+
+    .side-expand-fab:hover {
+        color: var(--accent);
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow);
+    }
+
+    .side-expand-fab svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .write-grid.side-collapsed ~ .side-expand-fab,
+    .side-expand-fab.is-visible {
+        display: flex;
     }
 
     /* 批改结果区 */
@@ -399,12 +483,54 @@
     }
 
     .phrase-result-block ul {
-        margin-left: 1.25rem;
+        margin-left: 0;
+        padding-left: 1.25rem;
         color: var(--text);
         line-height: 1.7;
     }
 
     .phrase-result-block strong { color: var(--accent); }
+
+    .phrase-result-block li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .phrase-item-content { flex: 1; min-width: 0; }
+
+    .phrase-save-btn {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text-3);
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .phrase-save-btn:hover:not(:disabled) {
+        color: var(--accent);
+        border-color: var(--border-strong);
+        background: var(--accent-soft);
+    }
+
+    .phrase-save-btn:disabled { cursor: default; }
+
+    .phrase-save-btn.saved {
+        color: var(--success);
+        border-color: var(--success);
+        background: var(--success-soft);
+    }
+
+    .phrase-save-btn svg { width: 12px; height: 12px; }
 
     .phrase-cache-badge {
         display: inline-block;
@@ -414,6 +540,27 @@
         padding: 0.1875rem 0.4375rem;
         border-radius: var(--radius-sm);
         margin-bottom: 0.4375rem;
+    }
+    .phrase-notebook-badge {
+        display: inline-block;
+        font-size: 0.75rem;
+        background: var(--success-soft);
+        color: var(--success);
+        padding: 0.1875rem 0.4375rem;
+        border-radius: var(--radius-sm);
+        margin-bottom: 0.4375rem;
+        margin-right: 0.3125rem;
+    }
+    .phrase-dictionary-badge {
+        display: inline-block;
+        font-size: 0.75rem;
+        background: var(--surface-2);
+        color: var(--text-2);
+        border: 1px solid var(--border);
+        padding: 0.1875rem 0.4375rem;
+        border-radius: var(--radius-sm);
+        margin-bottom: 0.4375rem;
+        margin-right: 0.3125rem;
     }
 </style>
 {% endblock %}
@@ -483,8 +630,8 @@
                 </div>
 
                 <div class="submit-section">
-                    <button onclick="saveOnly()" class="btn btn-secondary">仅保存草稿</button>
-                    <button onclick="saveDiary()" class="btn btn-primary" id="saveDiaryBtn">保存并批改</button>
+                    <button onclick="saveOnly()" class="btn btn-secondary">保存</button>
+                    <button onclick="saveDiary()" class="btn btn-primary" id="saveDiaryBtn">批改</button>
                     <button onclick="clearEditor()" class="btn btn-ghost">清空</button>
                 </div>
             </div>
@@ -510,7 +657,15 @@
             </div>
         </div>
 
-        <div class="side-panel">
+        <div class="side-panel" id="sidePanel">
+            <div class="side-panel-header">
+                <button type="button" class="side-toggle" onclick="toggleSidePanel()" title="收起右侧栏" aria-label="收起右侧栏">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                    <span>收起</span>
+                </button>
+            </div>
             <div class="phrase-search-box">
                 <h3>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -529,6 +684,12 @@
         </div>
     </div>
 </div>
+
+<button type="button" id="sideExpandFab" class="side-expand-fab" onclick="toggleSidePanel()" title="展开右侧栏" aria-label="展开右侧栏">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+</button>
 
 <div id="loadingOverlay" class="modal" style="display: none;">
     <div class="modal-content" style="text-align: center; max-width: 360px;">
@@ -581,6 +742,24 @@
     let _isAutoSaving = false;
 
     const AUTO_SAVE_INTERVAL = 30000;
+
+    // 右侧栏收起 / 展开
+    function toggleSidePanel() {
+        const grid = document.querySelector('.write-grid');
+        const fab = document.getElementById('sideExpandFab');
+        const btn = document.querySelector('.side-toggle');
+        if (!grid) return;
+        const collapsed = grid.classList.toggle('side-collapsed');
+        if (fab) fab.classList.toggle('is-visible', collapsed);
+        if (btn) {
+            const label = btn.querySelector('span');
+            const icon = btn.querySelector('svg polyline');
+            if (label) label.textContent = collapsed ? '展开' : '收起';
+            if (icon) icon.setAttribute('points', collapsed ? '15 18 9 12 15 6' : '9 18 15 12 9 6');
+            btn.setAttribute('title', collapsed ? '展开右侧栏' : '收起右侧栏');
+            btn.setAttribute('aria-label', collapsed ? '展开右侧栏' : '收起右侧栏');
+        }
+    }
 
     function updateAutoSaveStatus(state) {
         const el = document.getElementById('autoSaveStatus');
@@ -715,6 +894,8 @@
     }
 
     // ========== 短语搜索（流式） ==========
+    let _currentStreamingResult = null;
+
     function handlePhraseKeypress(e) {
         if (e.key === 'Enter') searchPhraseExpression();
     }
@@ -725,6 +906,7 @@
 
         const resultsDiv = document.getElementById('phraseResults');
         resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+        _currentStreamingResult = null;
 
         try {
             const token = getToken();
@@ -761,7 +943,7 @@
                             resultsDiv.innerHTML = '';
                             hasData = true;
                         }
-                        handlePhraseStreamData(data, resultsDiv);
+                        handlePhraseStreamData(data, resultsDiv, phrase);
                     } catch (e) { console.error('Parse error:', e); }
                 }
             }
@@ -773,26 +955,33 @@
         }
     }
 
-    function handlePhraseStreamData(data, resultsDiv) {
+    function handlePhraseStreamData(data, resultsDiv, query) {
         if (data.type === 'cached') {
             displayPhraseResults(data, resultsDiv);
             return;
         }
+        if (!_currentStreamingResult) {
+            _currentStreamingResult = { phrase: query, translations: [], examples: [], alternatives: [] };
+        }
         // AI 流式：分别增量渲染各 section（避免每段覆盖上一段）
         if (data.type === 'translations' && data.translations?.length) {
+            _currentStreamingResult.translations = data.translations;
             appendPhraseSection(resultsDiv, '翻译', data.translations);
             return;
         }
         if (data.type === 'examples' && data.examples?.length) {
+            _currentStreamingResult.examples = data.examples;
             appendPhraseSection(resultsDiv, '例句', data.examples);
             return;
         }
         if (data.type === 'alternatives' && data.alternatives?.length) {
+            _currentStreamingResult.alternatives = data.alternatives;
             appendPhraseSection(resultsDiv, '其他表达', data.alternatives);
             return;
         }
         if (data.type === 'complete') {
-            // 三个 section 已经增量渲染完，无需重复
+            // 三个 section 已渲染完，加一个"保存全部"按钮
+            appendSaveAllButton(resultsDiv, _currentStreamingResult);
             return;
         }
         if (data.error) {
@@ -806,7 +995,21 @@
 
     function displayPhraseResults(result, resultsDiv) {
         resultsDiv.innerHTML = '';
-        if (result.cached) {
+        // 笔记本命中（用户自己的词条）→ 绿色"已收藏"徽章
+        if (result.source === 'notebook') {
+            const badge = document.createElement('span');
+            badge.className = 'phrase-notebook-badge';
+            badge.textContent = '已收藏 · 来自你的笔记本';
+            resultsDiv.appendChild(badge);
+        } else if (result.source === 'dictionary' || result.source === 'ecdict') {
+            // 内置静态词典命中 → 中性灰"离线词库"徽章
+            // dictionary = 精选短语  ecdict = 通用词典
+            const badge = document.createElement('span');
+            badge.className = 'phrase-dictionary-badge';
+            badge.textContent = '离线词库';
+            resultsDiv.appendChild(badge);
+        } else if (result.source === 'cache') {
+            // 内存缓存命中 → 暖棕"来自缓存"徽章
             const badge = document.createElement('span');
             badge.className = 'phrase-cache-badge';
             badge.textContent = '来自缓存';
@@ -819,25 +1022,53 @@
             resultsDiv.innerHTML = '<p style="color: var(--text-3); font-size: 0.8125rem;">没有找到相关结果</p>';
             return;
         }
-        const saveBtn = document.createElement('button');
-        saveBtn.className = 'btn btn-secondary btn-sm';
-        saveBtn.style.marginTop = '0.5rem';
-        saveBtn.style.width = '100%';
-        saveBtn.textContent = '保存到笔记本';
-        saveBtn.onclick = () => saveToNotebook(result);
-        resultsDiv.appendChild(saveBtn);
+        appendSaveAllButton(resultsDiv, result);
     }
 
     function appendPhraseSection(container, title, items) {
         const block = document.createElement('div');
         block.className = 'phrase-result-block';
-        const ul = items.map(t => `<li>${typeof t === 'string' ? escapeHtml(t) : `<strong>${escapeHtml(t.en || '')}</strong> — ${escapeHtml(t.zh || t.meaning || '')}`}</li>`).join('');
+        const ul = items.map(t => {
+            const content = typeof t === 'string'
+                ? escapeHtml(t)
+                : `<strong>${escapeHtml(t.en || '')}</strong> — ${escapeHtml(t.zh || t.meaning || '')}`;
+            const itemText = typeof t === 'string' ? t : (t.en || t.zh || t.meaning || '');
+            return `<li>
+                <span class="phrase-item-content">${content}</span>
+                <button type="button" class="phrase-save-btn" data-text="${escapeHtml(itemText)}" data-section="${escapeHtml(title)}" title="保存到笔记本" aria-label="保存到笔记本">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                </button>
+            </li>`;
+        }).join('');
         block.innerHTML = `<div class="phrase-result-block-title">${title}</div><ul>${ul}</ul>`;
         container.appendChild(block);
+        block.querySelectorAll('.phrase-save-btn').forEach(btn => {
+            btn.addEventListener('click', () => handleItemSave(btn));
+        });
     }
 
-    async function saveToNotebook(result) {
+    function appendSaveAllButton(container, result) {
+        // 避免重复添加
+        if (container.querySelector('.phrase-save-all')) return;
+        // 笔记本命中就不显示"保存全部"，已收藏
+        if (result.source === 'notebook') return;
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.className = 'btn btn-secondary btn-sm phrase-save-all';
+        saveBtn.textContent = '保存全部到笔记本';
+        saveBtn.onclick = () => saveToNotebook(result, saveBtn);
+        container.appendChild(saveBtn);
+    }
+
+    async function saveToNotebook(result, btn) {
         const token = getToken();
+        const originalText = btn ? btn.textContent : null;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '保存中…';
+        }
         try {
             const response = await fetch(`${API_BASE}/notebook`, {
                 method: 'POST',
@@ -854,16 +1085,62 @@
             });
             if (response.ok) {
                 showMessage('已保存到笔记本', 'success');
+                if (btn) {
+                    btn.textContent = '已保存 ✓';
+                    btn.classList.add('saved');
+                }
             } else {
                 const error = await response.json();
                 showMessage('保存失败：' + (error.detail || '未知错误'), 'error');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
             }
         } catch (error) {
             showMessage('保存失败：' + error.message, 'error');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
         }
     }
 
-    // ========== 仅保存草稿 ==========
+    async function handleItemSave(btn) {
+        if (btn.classList.contains('saved') || btn.disabled) return;
+        const text = btn.dataset.text;
+        if (!text) return;
+        btn.disabled = true;
+        try {
+            const token = getToken();
+            const response = await fetch(`${API_BASE}/notebook`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    phrase: text,
+                    translations: [],
+                    examples: [],
+                    alternatives: []
+                })
+            });
+            if (response.ok) {
+                btn.classList.add('saved');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            } else {
+                const err = await response.json();
+                showMessage('保存失败：' + (err.detail || '未知错误'), 'error');
+                btn.disabled = false;
+            }
+        } catch (error) {
+            showMessage('保存失败：' + error.message, 'error');
+            btn.disabled = false;
+        }
+    }
+
+    // ========== 保存草稿 ==========
     async function saveOnly() {
         const content = document.getElementById('diaryContent').value.trim();
         const diaryDate = document.getElementById('diaryDate').value;
@@ -917,7 +1194,7 @@
         }
     }
 
-    // ========== 保存并批改（流式） ==========
+    // ========== 批改（流式） ==========
     let _isSaving = false;
 
     async function saveDiary() {
