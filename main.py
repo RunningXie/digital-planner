@@ -868,10 +868,10 @@ async def search_phrase_stream(
             yield f"data: {json.dumps(notebook_hit, ensure_ascii=False)}\n\n"
         return StreamingResponse(stream_notebook(), media_type="text/event-stream")
 
-    # 2. 查内置静态词典（精选短语 + ECDict 通用词库，离线即查，不消耗配额）
+    # 2. 查内置静态词典（精选短语 + 雅思词条 DB，离线即查，不消耗配额）
     dict_hit = static_dict_search(request.phrase)
     if dict_hit:
-        # dict_hit 已包含 source（'dictionary' 精选 / 'ecdict' 通用）
+        # dict_hit 已包含 source（'dictionary' 精选 / 'ielts' 雅思词条）
         dict_event = {
             "type": "cached",
             **dict_hit,

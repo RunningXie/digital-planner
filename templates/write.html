@@ -4,10 +4,17 @@
 
 {% block extra_css %}
 <style>
+    .write-page-container {
+        max-width: 1080px;
+    }
+    @media (max-width: 768px) {
+        .write-page-container { max-width: 760px; }
+    }
+
     .write-grid {
         display: grid;
-        /* 编辑区占大头，右侧辅助栏 260px；可整列收起 */
-        grid-template-columns: 1fr 260px;
+        /* 编辑区占大头，右侧辅助栏 320px；可整列收起 */
+        grid-template-columns: 1fr 320px;
         gap: 1.5rem;
         align-items: start;
         transition: grid-template-columns 0.2s ease;
@@ -139,10 +146,10 @@
         background: transparent;
         color: var(--text);
         font-family: var(--font-serif);
-        font-size: 1rem;
-        line-height: 1.8;
+        font-size: 1.0625rem;
+        line-height: 1.85;
         resize: vertical;
-        padding: 0;
+        padding: 0.5rem 0;
     }
 
     .diary-textarea:focus { outline: none; }
@@ -224,25 +231,33 @@
         height: 12px;
     }
 
-    /* 收起后右侧贴边的展开按钮 */
+    /* 收起后右侧贴边的展开按钮：始终 display:flex，is-visible 控制显隐 */
     .side-expand-fab {
         position: fixed;
         right: 1rem;
         top: 50%;
-        transform: translateY(-50%);
+        transform: translate(0, -50%);
         width: 36px;
         height: 36px;
         border-radius: 50%;
         background: var(--surface);
         border: 1px solid var(--border);
         color: var(--text-2);
-        display: none;
+        display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         box-shadow: var(--shadow-sm);
-        transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+        transition: color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease,
+                    opacity 0.2s ease, transform 0.2s ease;
         z-index: 50;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .side-expand-fab.is-visible {
+        opacity: 1;
+        pointer-events: auto;
     }
 
     .side-expand-fab:hover {
@@ -256,9 +271,9 @@
         height: 16px;
     }
 
-    .write-grid.side-collapsed ~ .side-expand-fab,
-    .side-expand-fab.is-visible {
-        display: flex;
+    @media (max-width: 900px) {
+        /* 移动端：右侧栏自动堆叠到下方，不需要 FAB */
+        .side-expand-fab { display: none !important; }
     }
 
     /* 批改结果区 */
@@ -310,6 +325,27 @@
         color: var(--success);
         font-weight: 500;
         margin-bottom: 0.3125rem;
+    }
+
+    /* 正确句子的轻量展示：不画删除线，左边细绿条 */
+    .correction-item--correct {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--success);
+        border-radius: var(--radius);
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.6875rem;
+        font-size: 0.9375rem;
+    }
+
+    .correction-correct-only {
+        color: var(--text-2);
+        margin-bottom: 0.3125rem;
+    }
+
+    .correction-explanation--ok {
+        color: var(--success);
+        font-size: 0.8125rem;
     }
 
     .correction-explanation {
@@ -470,12 +506,12 @@
     .phrase-result-block {
         background: var(--surface-2);
         border-radius: var(--radius);
-        padding: 0.75rem 0.875rem;
-        font-size: 0.875rem;
+        padding: 0.625rem 0.75rem;
+        font-size: 0.8125rem;
     }
 
     .phrase-result-block-title {
-        font-size: 0.75rem;
+        font-size: 0.6875rem;
         color: var(--text-3);
         margin-bottom: 0.3125rem;
         text-transform: uppercase;
@@ -484,9 +520,11 @@
 
     .phrase-result-block ul {
         margin-left: 0;
-        padding-left: 1.25rem;
+        padding-left: 1.125rem;
         color: var(--text);
-        line-height: 1.7;
+        line-height: 1.6;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
     }
 
     .phrase-result-block strong { color: var(--accent); }
@@ -566,7 +604,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container write-page-container">
     <div class="write-page-header">
         <h1>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -1306,16 +1344,38 @@
         // 收到一条批改：先摘掉 pending，避免和卡片混杂
         removePendingIndicator(listDiv);
         const card = document.createElement('div');
+
+        // 判断这条批改是不是"没找到错误"：
+        //  1. original 去除空白后与 corrected 相同（最可靠的事实）
+        //  2. explanation 出现"没有发现错误"或"no error"等关键字
+        // 满足任一条，就当作正确，不画删除线、不显示"应用"按钮
+        const noTextChange = (c.original || '').trim() === (c.corrected || '').trim();
+        const explanation = (c.explanation || '').toLowerCase();
+        const saysNoError = /没有发现错误|没有语法错误|没有错误|no error|没有需要修正|表达清晰自然|表达自然/.test(explanation);
+        const hasError = !noTextChange && !saysNoError
+            && c.original && c.corrected;
+
+        if (!hasError) {
+            // 正确的句子：绿色提示"这句没问题"，不画删除线
+            card.className = 'correction-item correction-item--correct';
+            card.innerHTML = `
+                <div class="correction-correct-only">${escapeHtml(c.original || '')}</div>
+                <div class="correction-explanation correction-explanation--ok">${escapeHtml(c.explanation || '没有发现错误。')}</div>
+            `;
+            listDiv.appendChild(card);
+            appendPendingIndicator(listDiv);
+            return;
+        }
+
+        // 有错误的句子：原句（删除线）+ 改正后 + 解释 + 应用按钮
         card.className = 'correction-item';
-        const hasError = c.explanation !== 'No errors found.' && c.explanation !== '没有发现错误。'
-            && c.original && c.corrected && c.original !== c.corrected;
         card.innerHTML = `
             <div class="correction-original">${escapeHtml(c.original)}</div>
-            ${hasError ? `<div class="correction-corrected">${escapeHtml(c.corrected)}</div>` : ''}
+            <div class="correction-corrected">${escapeHtml(c.corrected)}</div>
             <div class="correction-explanation">${escapeHtml(c.explanation || '无解释')}</div>
-            ${hasError ? `<div class="correction-actions">
+            <div class="correction-actions">
                 <button type="button" class="btn-apply">应用</button>
-            </div>` : ''}
+            </div>
         `;
         const applyBtn = card.querySelector('.btn-apply');
         if (applyBtn) {

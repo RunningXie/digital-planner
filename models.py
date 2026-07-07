@@ -77,10 +77,36 @@ User.notebook_entries = relationship("NotebookEntry", back_populates="user", cas
 
 class EmailVerificationCode(Base):
     __tablename__ = "email_verification_codes"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(100), nullable=False, index=True)
     code = Column(String(10), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=False)
     used = Column(Boolean, default=False)
+
+
+class DictionaryEntry(Base):
+    """
+    静态词典词条（来自 ECDict 等开源词库，写入 PG 供离线搜索）。
+
+    设计要点：
+      - word 用规范化小写形式作为唯一键（unique index），支持 case-insensitive 查找
+      - translation / pos / tags / examples 都是数组或列表，PostgreSQL 用 JSONB，SQLite 测试环境用 JSON
+      - source 区分来源：'ielts-ecdict' 来自雅思筛选、'curated' 是手写精选（暂未使用此表）
+      - collins 1-5（柯林斯星级），frq 频率排序（数字越小越常用）
+      - phonetics 音标
+    """
+    __tablename__ = "dictionary_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    word = Column(String(200), nullable=False, index=True)        # 原形（小写）
+    word_normalized = Column(String(200), nullable=False, unique=True, index=True)  # 去空格/标点，用于精确匹配
+    translation = Column(JSON, default=list)  # 主要中文翻译列表
+    pos = Column(JSON, default=list)         # 词性列表 ['n.', 'v.']
+    phonetics = Column(String(200), nullable=True)  # 音标 /ɒˈrɪŋ.ɡəl/
+    collins = Column(Integer, default=0)     # 柯林斯星级 1-5
+    frq = Column(Integer, nullable=True)     # 词频排序（数字越小越常用）
+    tags = Column(JSON, default=list)        # 标签 ['ielts', 'cet4', 'toefl']
+    source = Column(String(50), nullable=False, default="ielts-ecdict")
+    created_at = Column(DateTime, default=datetime.utcnow)
