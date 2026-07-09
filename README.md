@@ -198,15 +198,131 @@ pytest tests/test_phrase_search.py -v
 
 ### 3. 数据库模型
 
-**`User`**:
-- `id`, `username`, `email`, `hashed_password`
+> **单一真相源** — 全部表结构都集中在 `models.py` 一个文件里。其他文件（`database.py` / `main.py` / `schemas.py` / 模板）都不再定义字段，只**消费** `models.py` 提供的字段。改字段只动一个地方。
+>
+> `database.py` 的 `init_db()` 启动时会：① `create_all` 建缺失的表；② 对比 `models.py` 和现有 DB schema，自动 `ALTER TABLE ADD COLUMN` 补齐新列；③ 回填带默认值的 NULL 行。**注意**：删列 / 改类型不会自动迁移，要手写 SQL。
 
-**`Diary`**:
-- `id`, `user_id` (FK), `title`, `content`
-- `diary_date` — 用户选择的日记日期
-- `corrections: JSON` — 存储 AI 批改结果数组
-- `optimized_content: Text` — 优化后的全文
-- `ai_error: Text` — AI 错误信息
+#### 表结构（5 张表）
+
+**`users` — 用户表**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | Integer PK | 主键 |
+| `username` | String(50) unique | 用户名（登录用） |
+| `email` | String(100) unique | 邮箱 |
+| `hashed_password` | String(255) | **bcrypt 哈希**（`bcrypt.gensalt()`） |
+| `created_at` | DateTime | 注册时间 |
+| `daily_token_used` | Integer default 0 | 今日已用 token |
+| `daily_token_date` | Date | 配额重置日期 |
+| `daily_token_limit` | Integer default 20000 | 每日 token 上限 |
+| `last_active` | DateTime | 最近活跃时间（admin 统计用） |
+
+**`diaries` — 日记表**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | Integer PK | 主键 |
+| `user_id` | Integer FK | 关联 `users.id` |
+| `title` | String(200) default "" | 标题（已停用，默认空字符串） |
+| `content` | Text | 日记正文 |
+| `diary_date` | DateTime | 用户选择的日记日期 |
+| `created_at` / `updated_at` | DateTime | 时间戳 |
+| `corrections` | JSON | 逐句批改结果 |
+| `optimized_content` | Text | AI 润色后整文 |
+| `ai_error` | Text | AI 批改失败时的错误信息 |
+| `weather` | String(16) | 写日记时的天气 |
+| `mood` | String(16) | 写日记时的心情 |
+
+**`notebook_entries` — 笔记本（用户收藏的短语）**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | Integer PK | 主键 |
+| `user_id` | Integer FK | 关联 `users.id` |
+| `phrase` | String(200) indexed | 搜索过的短语 |
+| `translations` | JSON | 翻译列表 |
+| `examples` | JSON | 例句列表 |
+| `alternatives` | JSON | 替代说法列表 |
+| `note` | Text | 用户私人笔记 |
+| `created_at` | DateTime | 加入时间 |
+| `last_reviewed_at` | DateTime | 最近复习时间 |
+| `review_count` | Integer default 0 | 复习次数 |
+
+**`email_verification_codes` — 邮箱验证码**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | Integer PK | 主键 |
+| `email` | String(100) indexed | 接收验证码的邮箱 |
+| `code` | String(10) | 6 位数字（短时明文，10 分钟过期、单次使用） |
+| `created_at` / `expires_at` | DateTime | 时间戳 |
+| `used` | Boolean default false | 是否已使用 |
+
+**`dictionary_entries` — 雅思词条（离线词库）**
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | Integer PK | 主键 |
+| `word` | String(200) indexed | 单词原形（小写） |
+| `word_normalized` | String(200) unique | 去空格/标点，用于精确匹配 |
+| `translation` | JSON | 主要中文翻译列表 |
+| `pos` | JSON | 词性列表 `['n.', 'v.']` |
+| `phonetics` | String(200) | 音标 `/ɒˈrɪŋ.ɡəl/` |
+| `collins` | Integer default 0 | 柯林斯星级 1–5 |
+| `frq` | Integer | 词频排序（数字越小越常用） |
+| `tags` | JSON | 标签 `['ielts', 'cet4', 'toefl']` |
+| `source` | String(50) default "ielts-ecdict" | 数据来源 |
+| `created_at` | DateTime | 入库时间 |
+
+**表关系**：`users 1───n diaries`，`users 1───n notebook_entries`。`email_verification_codes` 和 `dictionary_entries` 独立。
+
+#### 字段加密现状
+
+| 字段 | 表 | 方式 | 风险 |
+|---|---|---|---|
+| `hashed_password` | `users` | **bcrypt**（单向哈希） | ✅ 强 |
+| JWT 登录态 | — | `python-jose` HS256 签名 | ⚠️ 签名非加密，载荷 base64 可解 |
+| `email` / `username` | `users` | 明文 | ⚠️ PII |
+| `content` / `note` | `diaries` / `notebook_entries` | **明文** | ⚠️ 私密日记内容 |
+| `corrections` / `optimized_content` | `diaries` | 明文 | ⚠️ 含批改内容 |
+| `code` | `email_verification_codes` | 明文 | ✅ 10 分钟过期、单次 |
+| `dictionary_entries.*` | `dictionary_entries` | 明文 | ✅ 公开数据 |
+
+HTTPS 传输由 Dokploy / 反向代理负责。**最敏感的是 `diaries.content` 和 `notebook_entries.note`** — 拿到 DB 备份或 SQL 注入就能直接读到所有用户私密内容。如要加固，方案是 `cryptography.fernet` 字段加密（密钥放环境变量 `DIARY_ENCRYPTION_KEY`）。
+
+#### 雅思词条 PG 化（离线词库）
+
+短语搜索的三级缓存：
+
+```
+用户笔记本 (notebook_entries)
+    ↓ miss
+PG dictionary_entries (~19k 雅思词条, 内存索引 O(1))
+    ↓ miss
+AI service.search_phrase_stream
+```
+
+**数据源**：开源 [ECDict](https://github.com/skywind3000/ECDICT) 英汉词典（BSD 协议），用 `scripts/load_ielts_dictionary.py` 灌入。
+
+**筛选规则**（任一满足即可）：
+- 标签属于 `{ielts, toefl, cet4, cet6, gre}`
+- 或 `collins >= 1`（柯林斯星级）
+
+**部署时灌入**：
+```bash
+# 1) 启动时 init_db 会自动 create_all 建表
+# 2) 上传 ECDict CSV（65MB）到容器 /app/data/ecdict.csv
+# 3) 灌入
+docker exec <container> python scripts/load_ielts_dictionary.py \
+    --csv-path /app/data/ecdict.csv --no-download --truncate
+```
+
+**源码位置**：
+- 模型：[models.py](file:///home/xieyichen/digital-planner/models.py) `DictionaryEntry`
+- 内存索引 + 搜索：[static_dictionary.py](file:///home/xieyichen/digital-planner/static_dictionary.py)
+- 灌入脚本：[scripts/load_ielts_dictionary.py](file:///home/xieyichen/digital-planner/scripts/load_ielts_dictionary.py)
+- API 集成：[main.py](file:///home/xieyichen/digital-planner/main.py) `/api/search-phrase/stream`（命中返回 `source: "ielts"`，短路 AI 调用、不消耗 token 配额）
 
 ### 4. API 端点
 
