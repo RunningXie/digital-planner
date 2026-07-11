@@ -348,7 +348,7 @@
                         <span><strong id="editWcChars">0</strong> 字符</span>
                         <span><strong id="editWcSentences">0</strong> 句</span>
                     </div>
-                    <p class="edit-form-hint" style="margin-top: 0.5rem;">保存修改后，AI 批改会重新生成最新的批改结果。</p>
+                    <p class="edit-form-hint" style="margin-top: 0.5rem;">保存修改后，会重新生成最新的分析结果。</p>
                 </div>
                 <div class="edit-form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeEditModal()">取消</button>
@@ -618,7 +618,7 @@
                 method: 'PUT',
                 body: JSON.stringify(body)
             });
-            showMessage('日记修改成功，AI 批改已更新', 'success');
+            showMessage('日记修改成功，分析结果已更新', 'success');
             closeEditModal();
             loadDiaries();
         } catch (error) {

@@ -530,15 +530,70 @@ async def create_diary_stream(
     db.add(db_diary)
     db.commit()
     db.refresh(db_diary)
-    
-    all_corrections = []
+
+    return StreamingResponse(
+        _stream_corrections(db, db_diary, diary.content),
+        media_type="text/event-stream",
+    )
+
+
+@app.put("/api/diaries/{diary_id}/stream")
+async def update_diary_stream(
+    diary_id: int,
+    diary: DiaryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    复用草稿跑流式批改（避免自动保存后再点批改产生重复记录）。
+
+    - 找到用户自己的草稿 → 更新 content/date/weather/mood → 跑批改
+    - 不是用户自己的 / 不存在 → 404
+    - 已批改过的（corrections 非空）也允许重跑（重置 corrections/optimized）
+    """
+    db_diary = db.query(Diary).filter(
+        Diary.id == diary_id,
+        Diary.user_id == current_user.id,
+    ).first()
+    if not db_diary:
+        raise HTTPException(status_code=404, detail="Diary not found")
+
+    # 配额只扣"新内容"的估算 tokens（避免重复扣）
+    estimated_tokens = _estimate_tokens(diary.content)
+    _check_and_deduct_quota(current_user, estimated_tokens, db)
+
+    # 更新草稿内容
+    db_diary.title = diary.title or ""
+    db_diary.content = diary.content
+    if diary.diary_date is not None:
+        db_diary.diary_date = diary.diary_date
+    if diary.weather is not None:
+        db_diary.weather = diary.weather
+    if diary.mood is not None:
+        db_diary.mood = diary.mood
+    # 重置批改结果（让前端"重新批改"语义清晰）
+    db_diary.corrections = []
+    db_diary.optimized_content = ""
+    db_diary.ai_error = None
+    db.commit()
+    db.refresh(db_diary)
+
+    return StreamingResponse(
+        _stream_corrections(db, db_diary, diary.content),
+        media_type="text/event-stream",
+    )
+
+
+def _stream_corrections(db: Session, db_diary: Diary, content: str):
+    """批改的共享流式逻辑：收集 corrections / optimized_content，落库，发 SSE。"""
+    all_corrections: list = []
     optimized_content = ""
-    
-    async def stream_corrections():
+
+    async def event_gen():
         nonlocal all_corrections, optimized_content
         stream_failed = False
         try:
-            async for item in ai_service.correct_diary_stream(diary.content):
+            async for item in ai_service.correct_diary_stream(content):
                 if item.get("type") == "optimized":
                     optimized_content = item.get("optimized_content", "")
                     yield f"data: {json.dumps(item)}\n\n"
@@ -564,8 +619,8 @@ async def create_diary_stream(
         if stream_failed:
             done_event["partial"] = True
         yield f"data: {json.dumps(done_event)}\n\n"
-    
-    return StreamingResponse(stream_corrections(), media_type="text/event-stream")
+
+    return event_gen()
 
 
 @app.post("/api/diaries/draft", response_model=DiaryResponse)

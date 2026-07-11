@@ -383,6 +383,83 @@ class TestDiaryStream:
             assert diaries[0].corrections[0]["corrected"] == "I went to school."
 
 
+class TestDraftThenStream:
+    """回归测试：自动保存（draft）+ 批改（stream）必须只产生一条记录。"""
+
+    def test_draft_then_stream_creates_one_diary(self, client, mock_ai_service, auth_headers, db_session):
+        """先自动保存草稿，再点批改按钮，DB 里只应该有 1 条 diary，不是 2 条。"""
+        from models import Diary
+
+        # 1) 自动保存：POST /api/diaries/draft
+        r1 = client.post(
+            "/api/diaries/draft",
+            json={"content": "First version. Maybe need editing."},
+            headers=auth_headers,
+        )
+        assert r1.status_code == 200
+        draft_id = r1.json()["id"]
+
+        # 此时 DB 里 1 条
+        assert db_session.query(Diary).count() == 1
+
+        # 2) 点批改：PUT /api/diaries/{draft_id}/stream（修复前是 POST /stream → 变 2 条）
+        r2 = client.put(
+            f"/api/diaries/{draft_id}/stream",
+            json={"content": "First version. Maybe need editing."},
+            headers=auth_headers,
+        )
+        assert r2.status_code == 200
+        assert r2.headers["content-type"] == "text/event-stream; charset=utf-8"
+
+        # 关键断言：DB 里仍然只有 1 条，id 就是草稿 id
+        diaries = db_session.query(Diary).all()
+        assert len(diaries) == 1
+        assert diaries[0].id == draft_id
+        # 批改结果被写入
+        assert len(diaries[0].corrections) == 1
+        assert diaries[0].optimized_content == "This is a test sentence."
+
+    def test_stream_without_draft_still_creates(self, client, mock_ai_service, auth_headers, db_session):
+        """没草稿直接点批改仍然能正常新建（向后兼容 POST /stream）。"""
+        from models import Diary
+
+        r = client.post(
+            "/api/diaries/stream",
+            json={"content": "Direct batch test."},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        # 必须有 done 事件和 diary_id
+        assert '"type": "done"' in r.text
+        assert '"diary_id"' in r.text
+        assert db_session.query(Diary).count() == 1
+
+    def test_stream_404_when_diary_belongs_to_another_user(self, client, mock_ai_service, auth_headers, db_session):
+        """PUT /diaries/{other_user_diary}/stream 必须 404，不能跨用户改草稿。"""
+        from models import Diary, User
+        from auth import get_password_hash
+
+        other = User(
+            username="other", email="o@x.com", hashed_password=get_password_hash("x")
+        )
+        db_session.add(other)
+        db_session.commit()
+        other_diary = Diary(user_id=other.id, title="", content="Not yours.")
+        db_session.add(other_diary)
+        db_session.commit()
+        other_id = other_diary.id
+
+        r = client.put(
+            f"/api/diaries/{other_id}/stream",
+            json={"content": "Trying to overwrite."},
+            headers=auth_headers,
+        )
+        assert r.status_code == 404
+        # 别人的草稿不能被改
+        db_session.refresh(other_diary)
+        assert other_diary.content == "Not yours."
+
+
 class TestTokenQuota:
     """Test daily token quota enforcement for AI API calls."""
 

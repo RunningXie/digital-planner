@@ -338,7 +338,34 @@ docker exec <container> python scripts/load_ielts_dictionary.py \
 | GET  | `/api/diaries/{id}` | 是 | 获取单个日记 |
 | PUT  | `/api/diaries/{id}` | 是 | 更新日记，修改内容会重新触发 AI 批改 |
 | DELETE | `/api/diaries/{id}` | 是 | 删除日记 |
+| POST | `/api/diaries/stream` | 是 | 流式批改（无日记时新建） |
+| PUT  | `/api/diaries/{id}/stream` | 是 | 流式批改（**复用日记**，避免重复记录） |
+| POST | `/api/diaries/draft` | 是 | 保存日记（仅落库，不跑批改；"保存"按钮和自动保存都用它） |
+| PUT  | `/api/diaries/{id}/draft` | 是 | 更新已存在的日记（自动保存复用） |
 | POST | `/api/search-phrase/stream` | 是 | 搜索短语（流式响应） |
+
+### 保存与批改的复用关系（避免重复记录）
+
+写日记页面有 **两个保存路径**：
+- **保存按钮** / **自动保存**（节流 2s）：`POST/PUT /api/diaries/draft`，不跑批改、只存原文
+- **批改按钮**：`POST/PUT /api/diaries/stream`，跑 AI 批改并落库
+
+**问题**：用户先写一段、触发了自动保存（日记 A），再修改文字、点批改 — 如果批改走 `POST /stream` 会**新建 B**，结果列表页看到 A 和 B 两条。
+
+**修复**：批改按钮检测到 `_currentDiaryId` 时改走 `PUT /diaries/{id}/stream`（更新日记后再批改），DB 里只产生 1 条。`_currentDiaryId` 在 SSE `done` 事件里同步。
+
+```
+写日记
+ ├─ 自动保存（每 2s 节流）
+ │   ├─ 没日记 → POST /diaries/draft       → 存 _currentDiaryId=A
+ │   └─ 有日记 → PUT  /diaries/A/draft     → 更新
+ │
+ └─ 点「批改」
+     ├─ 没日记 → POST /diaries/stream       → 新建 B
+     └─ 有日记 → PUT  /diaries/A/stream     → 复用 A（关键：避免重复）
+```
+
+**配额**：批改按新内容估算 token 扣费；保存不消耗配额。
 
 ## 前端流程
 

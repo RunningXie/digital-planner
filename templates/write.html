@@ -732,7 +732,7 @@
 <div id="loadingOverlay" class="modal" style="display: none;">
     <div class="modal-content" style="text-align: center; max-width: 360px;">
         <div class="spinner" style="margin: 0 auto 1rem;"></div>
-        <p style="color: var(--text);">AI 正在批改中…</p>
+        <p style="color: var(--text);">正在分析中…</p>
         <p style="color: var(--text-3); font-size: 0.8125rem; margin-top: 0.5rem;">通常需要 30-60 秒</p>
     </div>
 </div>
@@ -776,7 +776,7 @@
     // ========== 自动保存 ==========
     let _autoSaveTimer = null;
     let _lastSavedContent = '';
-    let _currentDraftId = null;
+    let _currentDiaryId = null;
     let _isAutoSaving = false;
 
     const AUTO_SAVE_INTERVAL = 30000;
@@ -815,7 +815,7 @@
         }
     }
 
-    async function autoSaveDraft() {
+    async function autoSaveDiary() {
         const content = document.getElementById('diaryContent').value;
         const diaryDate = document.getElementById('diaryDate').value;
         const weather = document.getElementById('diaryWeather').value;
@@ -838,8 +838,8 @@
             };
 
             let response;
-            if (_currentDraftId) {
-                response = await fetch(`${API_BASE}/diaries/${_currentDraftId}/draft`, {
+            if (_currentDiaryId) {
+                response = await fetch(`${API_BASE}/diaries/${_currentDiaryId}/draft`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -860,7 +860,7 @@
 
             if (response.ok) {
                 const result = await response.json();
-                _currentDraftId = result.id;
+                _currentDiaryId = result.id;
                 _lastSavedContent = content;
                 updateAutoSaveStatus('ok');
             } else {
@@ -875,7 +875,7 @@
 
     function startAutoSave() {
         if (_autoSaveTimer) clearInterval(_autoSaveTimer);
-        _autoSaveTimer = setInterval(autoSaveDraft, AUTO_SAVE_INTERVAL);
+        _autoSaveTimer = setInterval(autoSaveDiary, AUTO_SAVE_INTERVAL);
     }
 
     window.addEventListener('beforeunload', function(e) {
@@ -1001,7 +1001,7 @@
         if (!_currentStreamingResult) {
             _currentStreamingResult = { phrase: query, translations: [], examples: [], alternatives: [] };
         }
-        // AI 流式：分别增量渲染各 section（避免每段覆盖上一段）
+        // 流式响应：分别增量渲染各 section（避免每段覆盖上一段）
         if (data.type === 'translations' && data.translations?.length) {
             _currentStreamingResult.translations = data.translations;
             appendPhraseSection(resultsDiv, '翻译', data.translations);
@@ -1178,7 +1178,7 @@
         }
     }
 
-    // ========== 保存草稿 ==========
+    // ========== 保存日记（仅落库，不跑批改） ==========
     async function saveOnly() {
         const content = document.getElementById('diaryContent').value.trim();
         const diaryDate = document.getElementById('diaryDate').value;
@@ -1199,8 +1199,8 @@
                 mood: mood || null,
             };
             let response;
-            if (_currentDraftId) {
-                response = await fetch(`${API_BASE}/diaries/${_currentDraftId}/draft`, {
+            if (_currentDiaryId) {
+                response = await fetch(`${API_BASE}/diaries/${_currentDiaryId}/draft`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1220,9 +1220,9 @@
             }
             if (response.ok) {
                 const result = await response.json();
-                _currentDraftId = result.id;
+                _currentDiaryId = result.id;
                 _lastSavedContent = content;
-                showMessage('草稿已保存', 'success');
+                showMessage('已保存', 'success');
             } else {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || '保存失败');
@@ -1265,8 +1265,14 @@
 
         try {
             const token = getToken();
-            const response = await fetch(`${API_BASE}/diaries/stream`, {
-                method: 'POST',
+            // 复用已有日记：有 _currentDiaryId 就 PUT（更新后再批改），
+            // 避免保存 + 批改按钮产生两条记录。
+            const url = _currentDiaryId
+                ? `${API_BASE}/diaries/${_currentDiaryId}/stream`
+                : `${API_BASE}/diaries/stream`;
+            const method = _currentDiaryId ? 'PUT' : 'POST';
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -1337,6 +1343,9 @@
         }
         if (data.type === 'done') {
             removePendingIndicator(listDiv);
+            // 同步日记 id 和最后保存内容（保证后续保存还认这条记录）
+            if (data.diary_id) _currentDiaryId = data.diary_id;
+            _lastSavedContent = document.getElementById('diaryContent').value.trim();
             showMessage('日记已保存并批改完成', 'success');
             return;
         }
@@ -1412,7 +1421,7 @@
         document.getElementById('correctionsSection').style.display = 'none';
         document.getElementById('correctionsList').innerHTML = '';
         document.getElementById('optimizedContent').style.display = 'none';
-        _currentDraftId = null;
+        _currentDiaryId = null;
         _lastSavedContent = '';
         updateAutoSaveStatus('ok');
         updateWordCount('');
