@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dear Diary — 英文日记本</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        .hero {
+{% extends "base.html" %}
+
+{% block title %}Dear Diary — 英文日记本{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero {
             min-height: 80vh;
             display: flex;
             align-items: center;
@@ -144,13 +142,14 @@
         }
 
         @media (max-width: 768px) {
-            .hero { padding: 3rem 1rem 2rem; min-height: 70vh; }
-            .hero h1 { font-size: 1.875rem; }
-            .hero .lead { font-size: 0.9375rem; }
-        }
-    </style>
-</head>
-<body>
+        .hero { padding: 3rem 1rem 2rem; min-height: 70vh; }
+        .hero h1 { font-size: 1.875rem; }
+        .hero .lead { font-size: 0.9375rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
     <div class="hero">
         <div class="hero-inner">
             <span class="hero-eyebrow">
@@ -206,5 +205,4 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+{% endblock %}
