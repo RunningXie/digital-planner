@@ -1,12 +1,10 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 — Dear Diary</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        .verification-group {
+{% extends "base.html" %}
+
+{% block title %}注册 — Dear Diary{% endblock %}
+
+{% block extra_css %}
+<style>
+    .verification-group {
             display: flex;
             gap: 0.5rem;
         }
@@ -58,8 +56,9 @@
             pointer-events: auto;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="auth-page">
         <div class="auth-card">
             <div class="auth-header">
@@ -103,7 +102,6 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js"></script>
     <script>
         let emailVerified = false;
         let countdown = 0;
@@ -270,5 +268,4 @@
             }
         });
     </script>
-</body>
-</html>
+{% endblock %}

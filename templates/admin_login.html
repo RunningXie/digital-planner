@@ -1,13 +1,9 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理员登录 — Dear Diary</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-</head>
-<body>
-    <div class="auth-page">
+{% extends "base.html" %}
+
+{% block title %}管理员登录 — Dear Diary{% endblock %}
+
+{% block content %}
+<div class="auth-page">
         <div class="auth-card">
             <div class="auth-header">
                 <h1>
@@ -106,5 +102,4 @@
         // 页面加载时检查登录状态
         checkAuth();
     </script>
-</body>
-</html>
+{% endblock %}
